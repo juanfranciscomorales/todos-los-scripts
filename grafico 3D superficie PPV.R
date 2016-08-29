@@ -30,13 +30,15 @@ clasificaciones.test.set.ensemble.minimo.lm <- function (test.set = "Dtest.xlsx"
 
 ######## la anterior funcion hace que como resultado de mi test set me de una tabla con el score para minimo y clase
 
-lista.dude <- c("Dudes Myristoyl 1.xlsx","Dudes Myristoyl 2.xlsx","Dudes Myristoyl 3.xlsx","Dudes Myristoyl 4.xlsx","Dudes Myristoyl 5.xlsx","Dudes Myristoyl 6.xlsx","Dudes Myristoyl 7.xlsx","Dudes Myristoyl 8.xlsx","Dudes Myristoyl 9.xlsx","Dudes Myristoyl 10.xlsx","Dudes Myristoyl 11.xlsx","Dudes Myristoyl 12.xlsx","Dudes Myristoyl 13.xlsx","Dudes Myristoyl 1.xlsx","Dudes Myristoyl 15.xlsx","Dudes Myristoyl 16.xlsx", "Dudes Myristoyl 17.xlsx")## lista con los nombres de la base dude miristoil
+setwd("D:/Dropbox/R/lucas alberca/Base de datos - Myristoyl/Dude Myristoyl")
+
+lista.dude <- c("Test + Dudes 1.xlsx","Test + Dudes 2.xlsx","Test + Dudes 3.xlsx","Test + Dudes 4.xlsx","Test + Dudes 5.xlsx","Test + Dudes 6.xlsx","Test + Dudes 7.xlsx","Test + Dudes 8.xlsx","Test + Dudes 9.xlsx","Test + Dudes 10.xlsx","Test + Dudes 11.xlsx","Test + Dudes 12.xlsx","Test + Dudes 13.xlsx","Test + Dudes 14.xlsx","Test + Dudes 15.xlsx","Test + Dudes 16.xlsx", "Test + Dudes 17.xlsx")## lista con los nombres de la base dude miristoil
 
 lista.predicciones.dude <- list() ## creo lista vacia donde voy a guardar las predicciones
 
 for ( i in 1:17) { ## hago loop para tener resultados de todas las dude
         
-        lista.predicciones.dude[[i]] <- clasificaciones.test.set.ensemble.minimo.lm(test.set   = lista.dude[i],cant.modelos = 50, x = tabla.sensibilidad.ordenadas)  
+        lista.predicciones.dude[[i]] <- clasificaciones.test.set.ensemble.minimo.lm(test.set   = lista.dude[i],cant.modelos = 5, x = tabla.AUC.ordenadas.dude)  
 }
 
 library(plyr)
