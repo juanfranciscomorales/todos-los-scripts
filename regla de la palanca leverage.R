@@ -1,12 +1,14 @@
 
 
-mejores.segun.AUC <- as.numeric(tabla.AUC.ordenadas[c(1:5),"modelo"]) ### me fijo cuales son los mejores modelos
+mejores.segun.AUC <- as.numeric(tabla.AUC.ordenadas.dude[c(1:5),"modelo"]) ### me fijo cuales son los mejores modelos
 
 lista.mejores.modelos <-lista.modelos[mejores.segun.AUC]## armo una lista con los mejores modelos
 
 lista.nombre.descriptores <- lapply (X = lista.mejores.modelos , FUN = variable.names) ## extraigo los nombres de los descriptores elegidos por los mejores modelos
 
 lista.nombre.descriptores2 <- lapply( lista.nombre.descriptores, function (x) x[!x %in% c("(Intercept)") ]) ### elimino la variable intercept asi me quedan solo los nombres de los descriptores
+
+setwd("D:/Dropbox/R/lucas alberca/Base de datos - Myristoyl/Nuevas base de datos Myristoyl")## seteo la carpeta de trabajo a donde esta el training set
 
 lista.df <- list() ## creo una lista vacia donde voy a guardar los data frames de cada modelo que contiene los valrose de los descriptores
 
@@ -98,5 +100,5 @@ row.names(tabla.resultados) <- tabla.descriptores.drugbank$GENERIC_NAME
 
 colnames(tabla.resultados) <- paste(rep("modelo" , length(mejores.segun.AUC)),paste(mejores.segun.AUC) )
 
-write.xlsx(x= tabla.resultados, file= "tabla.resultados.xlsx" , colNames= TRUE, rowNames = TRUE,  keepNA=TRUE) # funcion para guardar la tabla de la dude si quiero
+write.xlsx(x= tabla.resultados, file= "tabla resultados leverage.xlsx" , colNames= TRUE, rowNames = TRUE,  keepNA=TRUE) # funcion para guardar la tabla de la dude si quiero
 

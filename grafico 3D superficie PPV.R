@@ -1,4 +1,4 @@
-clasificaciones.test.set.ensemble.minimo.lm <- function (test.set = "Dtest.xlsx",cant.modelos = 10, x = tabla.AUC.ordenadas) {
+clasificaciones.test.set.ensemble.minimo.lm <- function (test.set = "Dtest.xlsx",cant.modelos = 10, x = tabla.AUC.ordenadas, remover.NA = FALSE) {
         
         is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete está instalado o no
         
@@ -16,7 +16,7 @@ clasificaciones.test.set.ensemble.minimo.lm <- function (test.set = "Dtest.xlsx"
         
         tabla.valores.prediccion.test <- data.frame(matrix(unlist(lista.predicciones.test), nrow= length(lista.predicciones.test[[1]]), byrow=FALSE))#a la lista lista.predicciones.mejores.modelos la vuelvo data frame
         
-        minimo<-apply(tabla.valores.prediccion.test,1,min, na.rm=TRUE)#aplico operador minimo en los valores predichos de los mejores modelos para cada compuesto
+        minimo<-apply(tabla.valores.prediccion.test,1,min, na.rm= remover.NA)#aplico operador minimo en los valores predichos de los mejores modelos para cada compuesto
         
         clase <-df.test.set[,"clase" ] #extraigo los valores de la columna clase
         
@@ -25,10 +25,11 @@ clasificaciones.test.set.ensemble.minimo.lm <- function (test.set = "Dtest.xlsx"
         colnames(resultado)<- c("minimo", "clase")
         
         resultado
-        
 }
 
 ######## la anterior funcion hace que como resultado de mi test set me de una tabla con el score para minimo y clase
+
+########### EL SIGUIENTE CODIGO ES PARA CUANDO TENGO MI DUDE DIVIDIDA EN VARIOS ARCHIVOS ###########
 
 setwd("D:/Dropbox/R/lucas alberca/Base de datos - Myristoyl/Dude Myristoyl")
 
@@ -38,12 +39,22 @@ lista.predicciones.dude <- list() ## creo lista vacia donde voy a guardar las pr
 
 for ( i in 1:17) { ## hago loop para tener resultados de todas las dude
         
-        lista.predicciones.dude[[i]] <- clasificaciones.test.set.ensemble.minimo.lm(test.set   = lista.dude[i],cant.modelos = 5, x = tabla.AUC.ordenadas.dude)  
+        lista.predicciones.dude[[i]] <- clasificaciones.test.set.ensemble.minimo.lm(test.set   = lista.dude[i],cant.modelos = 5, x = tabla.AUC.ordenadas.dude, remover.NA = TRUE)  
 }
 
 library(plyr)
 
 df <- ldply(lista.predicciones.dude, data.frame) ## combino las tablas de de las dudes para hacer una sola
+
+
+####### SI TENGO MI DUDE EN UN SOLO ARCHIVO USO LAS SIGUIENTES LINEAS ###########################################
+
+df <- clasificaciones.test.set.ensemble.minimo.lm(test.set   = "BASE DUDES - POLIAMINAS.xlsx",cant.modelos = 6, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)  
+
+df <- as.data.frame(df)
+
+############## EL GRAFICO 3D EN SI#############################
+
 
 library(pROC)
 
