@@ -1,4 +1,12 @@
 
+#####################################################################################
+
+#               GRAFICOS 2D DE PPV Y MCC (MATTHEWS CORRELATION COEFFICIENT)             
+
+#####################################################################################
+
+
+
 
 library(ROCR) ## abro el paquete ROCR
 
@@ -7,3 +15,7 @@ predicciones <- prediction(predictions = predicciones.train[,2], labels = traini
 plot(performance(predicciones , measure = "mat" , x.measure = "cutoff")) ## grafico el valor del MCC(Matthews Correlation Coefficient) , mientas mas cercano a 1 mejor, mayor a 0.7 seria optimo
 
 plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="PPV vs cutoff") ## grafico de PPV versus punto de corte
+
+
+
+

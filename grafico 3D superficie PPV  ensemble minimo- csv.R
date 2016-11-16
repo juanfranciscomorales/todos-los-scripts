@@ -60,39 +60,68 @@ curva.ROC.dude <- roc(response = df$clase, predictor = df$minimo, direction = "<
 
 tabla.puntos.curva.roc<- as.data.frame(t(as.data.frame(coords(roc=curva.ROC.dude,x="all"))))## lo que hago es obtener todos los valores de sensibilidad y especificidad, los vuelvo data frame y los traspongo para obtener una tabla con columnas thershold sensitivity y specificity
 
-write.xlsx(x= tabla.puntos.curva.roc, file= "tabla.puntos.curva.roc.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar la tabla de la dude si quiero
+tabla.puntos.curva.roc$se.sp <- tabla.puntos.curva.roc$sensitivity/tabla.puntos.curva.roc$specificity ## creo una columna donde estan los valores de sensiblidad/especificidad, o sea la division de estos valores
 
-tabla.puntos.curva.roc.limpia<- read.xlsx(xlsxFile="tabla.puntos.curva.roc.xlsx", check.names = TRUE) 
+tabla.puntos.curva.roc.limpia <- tabla.puntos.curva.roc[ tabla.puntos.curva.roc$se.sp <= 2, ]  ### elimino los valores de sensiblidad/especificidad mayores a 2 porque no me dan informacion para el grafico
 
-### usar todos los datos de la tabla tabla.puntos.curva.roc hacer que no se pueda visualizar bien. Conviene acotar la tabla a los datos donde sensibilidad/especificidad es de 2.5 a 0.01 aprox
+tabla.puntos.curva.roc.limpia <- tabla.puntos.curva.roc.limpia[ !tabla.puntos.curva.roc.limpia$se.sp == 0, ] ## elimino los valores de sensibilidad/espeficidad que son iguales a cero porque tampoco me sirven para graficar
 
-sensibilidad <- tabla.puntos.curva.roc.limpia$sensitivity ##extraigo los valores de sensibilidad
+write.xlsx(x= tabla.puntos.curva.roc.limpia, file= "tabla.puntos.curva.roc.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar la tabla de los puntos de corte de la curva ROC con los valores de sensibilidad y especificidad despues del filtrado
 
-especificidad <- tabla.puntos.curva.roc.limpia$specificity##extraigo los valores de especificidad
+Sensitivity <- tabla.puntos.curva.roc.limpia$sensitivity ##extraigo los valores de Sensitivity
 
-prevalencia <- seq(from =0 , to =0.01, by=0.001) ## armo una secuencia de prevalencias donde voy a calcular el PPV
+Specificity <- tabla.puntos.curva.roc.limpia$specificity##extraigo los valores de Specificity
+
+Prevalence <- seq(from =0 , to =0.01, by=0.001) ## armo una secuencia de Prevalences donde voy a calcular el PPV
 
 list.PPV<-list() ##creo lista vacia donde voy a ponerlos valorse de PPV calculados
 
-for (i in 1:length(prevalencia)){ ##loop donde para cada prevalencia hago un barrido para los diferentes valores de sensibilidad/especificidad, asi calculo el PPV
+for (i in 1:length(Prevalence)){ ##loop donde para cada Prevalence hago un barrido para los diferentes valores de Sensitivity/Specificity, asi calculo el PPV
         
-        list.PPV[[i]] <- (sensibilidad*prevalencia[i])/(sensibilidad*prevalencia[i] + (1- especificidad)*(1- prevalencia[i]))##calculo del PPV
+        list.PPV[[i]] <- (Sensitivity*Prevalence[i])/(Sensitivity*Prevalence[i] + (1- Specificity)*(1- Prevalence[i]))##calculo del PPV
         
 }
 
-PPV <- matrix(unlist(list.PPV), nrow= length(list.PPV[[1]]), byrow=FALSE) ## es una matriz donde las columnas son las diferentes prevalencias y las filas son las diferentes relaciones sensibilidad/especificidad, y los valores de cada celda es la PPV correspondiente para esos valores
+PPV <- matrix(unlist(list.PPV), nrow= length(list.PPV[[1]]), byrow=FALSE) ## es una matriz donde las columnas son las diferentes Prevalences y las filas son las diferentes relaciones Sensitivity/Specificity, y los valores de cada celda es la PPV correspondiente para esos valores
 
-prevalencia <- as.list(prevalencia)
-
-sensibilidad.especificidad <- as.list(sensibilidad/especificidad)
+Prevalence <- as.list(Prevalence)
 
 library(plotly)
 
-p<-plot_ly(x= prevalencia, y = sensibilidad.especificidad, z = PPV, type = "surface") #grafico de superficie 3D
+f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo de los ejes
+
+f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
+
+axis.x <- list(title="Prevalence", ## opciones para el eje x
+               titlefont = f1,
+               tickfont = f2,
+               showgrid = T)
+
+axis.y <- list(title="Sensitivity/Specificity", ## opciones para el eje y
+               titlefont = f1,
+               tickfont = f2,
+               showgrid = T)
+
+axis.z <- list(title="PPV",  ## opciones para el eje z
+               titlefont = f1,
+               tickfont = f2,
+               showgrid = T)
+
+scene <- list(              ## resumo las info de los ejes en esta variable llamada "scene"
+        xaxis = axis.x,
+        yaxis = axis.y,
+        zaxis = axis.z)
 
 ####IMPORTANTE##### SABER QUE LAS COLUMNAS DE LA MATRIX EN Z SE CORRESPONDEN A X Y LAS FILAS DE Z SE CORRESPONDEN A Y 
 
+p<-plot_ly(x= ~Prevalence, y = ~Sensitivity/Specificity, z = ~PPV, type = "surface") %>% layout( title ="3D Surface PPV" , scene = scene)  # hago el grafico de superficie 3D, aca especifico el nombre del grafico y luego en scene pongo la variable scene que tiene los formatos deseados
+
+p
+
 htmlwidgets::saveWidget(as.widget(p), "PPV.html") ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
+
+
+
 
 
 
