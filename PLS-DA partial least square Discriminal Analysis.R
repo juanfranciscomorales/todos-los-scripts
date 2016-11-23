@@ -1,7 +1,33 @@
+#####################################################
+
+
+### PARTIAL LEAST SQUARES - DISCRIMINAL ANALYSIS ##
+
+   #                    PLS-DA                  #
+
+#####################################################
+
+is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
+
+if (is.installed("data.table") == FALSE) {install.packages("data.table")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+if (is.installed("mixOmics") == FALSE) {install.packages("mixOmics")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+#####    LECTURA DE DATOS Y LIMPIEZA DE DATOS     #################################
+
+training.set <- "Dtrainingmiristoil.csv" # nombre del archivo con el training set
+
+test.set <- "Dtestmiristoil.csv" # nombre del archivo con el test set
 
 library(data.table)
 
-training <- as.data.frame(fread(input = "Dtrainingmiristoil.csv", check.names = TRUE)) #leo el archivo con mis descriptores del training set
+library(mixOmics)
+
+library(pROC)
+
+training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
 training <- training[ , apply(training, 2, function(x) !any(is.na(x)))] ### elimino las columnas que contienen NaN
 
@@ -9,61 +35,80 @@ clase <- as.factor(training$clase) ## guardo la columna clase en un elemento
 
 training <- training[,-c(1,2)] # elimino las columnas clase y nombre, dejo solo las columnas con los descriptores
 
-training <- training[, colSums(training != 0) > 0] ## para eliminar las columnas que solo tienen zeros
+sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las columnas que tienen sd = 0 ( o sea sin varianza) y las que tienen muy muy poca varianza
 
-training <- Filter(function(x) sd(x) != 0, training) ## para eliminar las columnas que su desviacion estandar sd = 0 , o sea no tienen variabilidad esas columnas
+training <- training[, -sin.varianza$Position] ## elimino las columnas que tiene varianza cercana a cero
 
-training.dataframe <- as.data.frame(scale(training)) ## escalo mis datos
+training.matrix <- as.matrix(training) ### lo transformo a matrix
 
-training.matrix <- scale(training) ## escalo mis datos
+test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-test <- as.data.frame(fread(input = "Dtestmiristoil.csv", check.names = TRUE)) #leo el archivo con mis descriptores del test set
+test.matrix <- as.matrix(test) ## lo transformo en matrix
 
+test.matrix.limpia <- test.matrix[,colnames(test.matrix)[colnames(test.matrix) %in% colnames(training.matrix)]] ### hago que solo queden las columnas que estaban en el training, porque sino tira error cuando quiero predecir
 
-########### "DiscriMiner" ##########################3#
-
-
-install.packages("DiscriMiner")
-
-library(DiscriMiner)
-
-PLS.DA <- plsDA(variables = training.dataframe, group = clase, autosel = TRUE, cv="LOO", retain.models = F) ### me elige el mejor PLS-DA optimizando por Leave One Out
-
-summary(PLS.DA)
-
-print(PLS.DA)
-
-plot(PLS.DA)
-
-PLS.DA$confusion
-
-##############  "mixOmics"  #############################
-
-install.packages("mixOmics")
-
-library(mixOmics)
-
-PLS.DA <- plsda(X=training.matrix , Y = clase , scale = FALSE, ncomp = 2) ## hago PLS-DA, pero no me elije el mejor por Leave One Out, tengo que decirle la cantidad de componentes a incluir
-
-auroc(PLS.DA) ## me muestra la curva ROC del modelo en los datos
-
-plotVar(PLS.DA) ## me grafica la importancia de las variables, o algo asi
-
-plotIndiv(PLS.DA) ## me grafica las muestras en el espacio de los 2 componentes que mejor variabilidad tienen
+class(test.matrix.limpia) <- "numeric" ### no se porque en el paso anterior se me transforman los datos a caracter, entonces los vuelvo numeric otra vez en este paso
 
 
-#################### mdatools ##########################
+##############  "mixOmics"  - PLSDA en si #############################
 
-install.packages("mdatools")
 
-library(mdatools)
+num.comp <- 50 # el numero de componentes maximo a agregar en el modelo, luego me fijo cual es el valor optimo
 
-PLS.DA <- plsda(x = training.matrix , c = clase , center = FALSE , cv = 1, ncomp = 50) ### hago PLS-DA, y que me elija el mejor segun LOO
+PLS.DA <- plsda(X=training.matrix , Y = clase , scale = TRUE, ncomp = num.comp , near.zero.var = TRUE) ## hago PLS-DA, pero no me elije el mejor por cross-validation, tengo que decirle la cantidad de componentes a incluir
 
-summary(PLS.DA)
+PLS.DA.performance <- perf( object = PLS.DA , validation = "Mfold" , folds = 10 , progressBar = TRUE , nrepeat = 5 , auc = TRUE ) ### hago que me estime la performance de mi PLS-DA, por cross-validation con k = 10
 
-print(PLS.DA)
+plot(PLS.DA.performance , dist = "max.dist") ## me grafica la performance en base a el error calculado como la maxima distancia, que se obtuvo por el crossvalidation en el paso anterior
 
-par(mar=c(0.5,0.5,0.5,0.5)) ## amplio los margenes para que pueda funcionar la funcion plot, sino no dan los margenes
+plot(PLS.DA.performance , dist = "centroids.dist") ## me grafica la performance en base a el error calculado como la distancia de los centroides, que se obtuvo por el crossvalidation en el paso anterior
 
-plot(PLS.DA) ## me muestra 4 graficos de como actua el modelo
+plot(PLS.DA.performance , dist = "mahalanobis.dist")# me grafica la performance en base a el error calculado como mahalanobis, que se obtuvo por el crossvalidation en el paso anterior
+
+
+
+
+#### **************************************************************####
+
+
+### CON LOS GRAFICOS ANTERIORES DECIDO CUAL ES EL MEJOR NUMERO DE COMPONENTES 
+
+## Y ESE LO COLOCO EN LA SIGUIENTE VARIABLE
+
+
+
+
+
+
+num.comp.optimo <- 11  ## aqui coloco el numero de componentes optimo
+
+PLS.DA.optimo <- plsda(X=training.matrix , Y = clase , scale = TRUE, ncomp = num.comp.optimo ) ## hago PLS-DA, pero no me elije el mejor por cross-validation, tengo que decirle la cantidad de componentes a incluir
+
+plotVar(PLS.DA.optimo) ## me grafica la importancia de las variables, o algo asi
+
+plotIndiv(PLS.DA.optimo) ## me grafica las muestras en el espacio de los 2 componentes que mejor variabilidad tienen
+
+plotIndiv(object = PLS.DA.optimo ,  ind.names = FALSE ,pch = 21,  ellipse = TRUE , ellipse.level = 0.95 , centroid = TRUE , star = TRUE , style = "ggplot2" , title = "Gráfico de Individuos en 2D - PLSDA" , col.per.group =c("blue" , "green") ) ## me grafica las muestras en el espacio de los 2 componentes que mejor variabilidad tienen pero con elipses y unidas al centroide
+
+plotIndiv(object = PLS.DA.optimo ,  ind.names = FALSE ,pch = "tetra" ,  ellipse = TRUE , ellipse.level = 0.95 , centroid = TRUE , star = TRUE , style = "3d" , col.per.group =c("blue" , "green")) ## me grafica las muestras en el espacio de los 3 componentes que mejor variabilidad tienen
+
+predicciones.train <-  predict(object = PLS.DA.optimo , newdata = training.matrix , dist = "max.dist") ### predicciones en el training, como type es response el resultado me da como probabilidad
+
+auc.training <- auc(roc(predictor = predicciones.train,response = clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
+
+predicciones.test <-  predict( object = PLS.DA.optimo , newdata = test.matrix.limpia)  ### predicciones en el test, como type es response el resultado me da como probabilidad
+
+auc.test <- auc(roc(predictor= predicciones.test, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
+
+resultado <- list("Modelo armado por PLS-DA", PLS.DA.optimo , "Nº de Componentes Óptimo", num.comp.optimo , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+
+resultado
+
+
+##################  PERFOMANCE EN EL TEST SET          ######################
+
+
+
+predicciones.test <- predict( object = PLS.DA.optimo , newdata = test.matrix.limpia) ## hago la prediccion en si
+
+

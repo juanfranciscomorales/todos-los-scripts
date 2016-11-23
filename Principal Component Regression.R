@@ -7,6 +7,8 @@
 
 ###########################################
 
+
+
 training.set <- "Dtrainingmiristoil.csv"
 
 test.set <- "Dtestmiristoil.csv"
@@ -17,9 +19,13 @@ if (is.installed("data.table") == FALSE) {install.packages("data.table")} #si op
 
 if (is.installed("pls") == FALSE) {install.packages("pls")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
+if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
 library(data.table)
 
 library(pls)
+
+library(caret)
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
@@ -27,7 +33,9 @@ training <- training[ , apply(training, 2, function(x) !any(is.na(x)))] ### elim
 
 training <- training[,-1] # elimino la columna con los nombres, dejo solo la columna clase con los descriptores
 
-training <- Filter(function(x) sd(x) != 0, training) ## para eliminar las columnas que su desviacion estandar sd = 0 , o sea no tienen variabilidad esas columnas
+sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las columnas que tienen sd = 0 ( o sea sin varianza) y las que tienen muy muy poca varianza
+
+training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
 test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
@@ -36,37 +44,48 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 
 
 
-##### HAGO PRINCIPAL COMPONENT REGRESSION HACIENDO LEAVE ONE OUT CROSS-VALIDATION, CON LOS GRAFICOS QUE OBTENGO VER CUANTOS COMPONENTES SERIAN LOS OPTIMOS SEGUN ESTE TIPO DE VALIDACION ######
+##### HAGO PRINCIPAL COMPONENT REGRESSION HACIENDO CROSS-VALIDATION con  K = 10 ( que es el optimo para hacer cross validation), CON LOS GRAFICOS QUE OBTENGO VER CUANTOS COMPONENTES SERIAN LOS OPTIMOS SEGUN ESTE TIPO DE VALIDACION ######
 
 
 
 
 # IMPORTANTE!!!!!!!!!!!!!!!!!!!!  ######
 
-# ncomp lo puse que sea como maximo 40, pero esto depende 
 
-# de la cant de columnas 
+# si hay poca variabilidad en las columnas, 
 
-# y si hay poca variabilidad en las columnas, hace que LOO me tire error
+#hace que el cross-validation tire error, 
+
+#asi que por eso elimino las columnas con varianza cercana a cero
+
+
+
+
 
 
 
 
 set.seed(2) ## seteo la semilla
 
-pcr.fit <- pcr(clase~ ., data=training , ncomp = 40 ,  scale= TRUE , validation ="LOO" , na.action = na.omit) ## hago Principal Component Regression, hago que los datos se escalen porque sino puede variar el resultado, haciendo Leave One Out crossvalidation
+pcr.fit <- pcr(clase ~ ., data = training  ,  scale= TRUE , validation ="CV" , segments = 10,  na.action = na.omit) ## hago Principal Component Regression, hago que los datos se escalen porque sino puede variar el resultado. A su vez hace crossvalidation con k = 10 para luego saber cual es la cant de componentes principales optima
 
 summary(pcr.fit) ## sumario de los resultados obtenidos durante el fitteo
 
-validationplot(pcr.fit,val.type="MSEP" , main = "MSEP Training set LOO-CV") ## me grafica el MSEP del LOO a medida que agrego componentes principales
+validationplot(pcr.fit , val.type="MSEP" , main = "MSEP Training set Cross-Validation - k = 10") ## me grafica el MSEP del LOO a medida que agrego componentes principales
 
-validationplot(pcr.fit,val.type="R2" , main = "R2 Training set LOO-CV") ## me grafica el R2 del LOO a medida que agrego componentes principales
+validationplot( pcr.fit , val.type="R2" , main = "R2 Training set Cross-Validation - k = 10") ## me grafica el R2 del LOO a medida que agrego componentes principales
 
-validationplot(pcr.fit,val.type="RMSEP" , main = "RMSEP Training set LOO-CV") ## me grafica RMSEP del LOO a medida que agrego componentes  principales
+# no se porque el grafico de la linea de arriba tira error
 
-validationplot(pcr.fit, ncomp = 1:40 , val.type="MSEP", newdata = test , main = "MSEP Test set validation") ### me grafica el error en el test set a medida que agrego componentes principales
+validationplot( pcr.fit , val.type="RMSEP" , main = "RMSEP Training set Cross-Validation - k = 10") ## me grafica RMSEP del LOO a medida que agrego componentes  principales
 
-validationplot(pcr.fit, ncomp = 1:40 , val.type="R2", newdata = test , main = "R2 Test set validation") ### me grafica el error en el test set a medida que agrego componentes principales
+validationplot(pcr.fit, ncomp = 1:pcr.fit$ncomp , val.type="MSEP", newdata = test , main = "MSEP Test set validation") ### me grafica el error en el test set a medida que agrego componentes principales
+
+validationplot(pcr.fit, ncomp = 1:pcr.fit$ncomp , val.type="RMSEP", newdata = test , main = "RMSEP Test set validation") ### me grafica el error en el test set a medida que agrego componentes principales
+
+validationplot(pcr.fit, ncomp = 1:pcr.fit$ncomp , val.type="R2", newdata = test , main = "R2 Test set validation") ### me grafica el error en el test set a medida que agrego componentes principales
+
+
 
 
 
@@ -83,7 +102,7 @@ validationplot(pcr.fit, ncomp = 1:40 , val.type="R2", newdata = test , main = "R
 
 
 
-N_comp_optimo <- 15
+N_comp_optimo <- 50 ### A PARTIR DE LOS GRAFICOS ANTERIORES MODIFICAR ESTE VALOR
 
 predplot(pcr.fit, ncomp = N_comp_optimo  , main = "Predicted vs Measured - Training set") ### veo el comportamiento del training set segun la cant de componentes optimos que yo decidi por los graficos anteriores
 
@@ -105,7 +124,11 @@ resultado
 
 
 
+
+
 ######### GRAFICOS PARA VER LA PERFORMANCE EN EL TEST SET O LA DUDE  #######
+
+
 
 
 test.set <- "Dtestmiristoil.csv"
@@ -181,19 +204,25 @@ f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo
 f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
 
 axis.x <- list(title="Prevalence", ## opciones para el eje x
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1, ## para cambiar la fuente del titulo
+               tickfont = f2, ## para cambiar la fuente de la marca de los ejes
+               showgrid = T, ## si se muestra la cuadricula
+               gridwidth = 10, ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
 
 axis.y <- list(title="Sensitivity/Specificity", ## opciones para el eje y
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1, ## para cambiar la fuente del titulo
+               tickfont = f2, ## para cambiar la fuente de la marca de los ejes
+               showgrid = T , ## si se muestra la cuadricula
+               gridwidth = 10,  ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
 
 axis.z <- list(title="PPV",  ## opciones para el eje z
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1, ## para cambiar la fuente del titulo
+               tickfont = f2, ## para cambiar la fuente de la marca de los ejes
+               showgrid = T , ## si se muestra la cuadricula
+               gridwidth = 10,  ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
 
 scene <- list(              ## resumo las info de los ejes en esta variable llamada "scene"
         xaxis = axis.x,

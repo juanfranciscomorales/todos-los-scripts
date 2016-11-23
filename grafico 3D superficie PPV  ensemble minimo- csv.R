@@ -1,3 +1,5 @@
+
+
 clasificaciones.test.set.ensemble.minimo.lm2 <- function (test.set = "dude.csv",cant.modelos = 10, x = tabla.AUC.ordenadas) {
         
         is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
@@ -28,13 +30,16 @@ clasificaciones.test.set.ensemble.minimo.lm2 <- function (test.set = "dude.csv",
         
 }
 
-df <- clasificaciones.test.set.ensemble.minimo.lm2(test.set  = "dude.csv",cant.modelos = 10, x = tabla.AUC.ordenadas.test.set)  
+### LA FUNCION ANTERIOR  LO QUE HACE ES TIRARME EL VALOR DE LA CLASE 
+### Y EL VALOR MINIMO PARA CADA COMPUESTO DE LA BASE DUDE
 
-df$clase[df$clase == -1] <- 0
+df <- clasificaciones.test.set.ensemble.minimo.lm2(test.set  = "Descriptores DUDE 1 Sofi.csv",cant.modelos = 120, x = tabla.AUC.ordenadas.test.set)  ## aplico la funcion anterior para obtener un data frame con los valores de score minimo y la clase real
 
-curva.roc.dude <- roc(predictor = df$minimo ,response = df$clase, direction="<")
+df$clase[df$clase == -1] <- 0 ## esto es por si llega a haber en el archivo original haber puesto a los inactivos como -1, pasarlos a 0
 
-AUC.dude <- auc(curva.roc.dude)
+curva.roc.dude <- roc(predictor = df$minimo ,response = df$clase, direction="<" , plot = TRUE , print.auc = TRUE) ## calculo la curva ROC con los datos del score minimo y la clase verdadera
+
+AUC.dude <- auc(curva.roc.dude) ## calculo el AUC ROC
 
 predicciones <- ifelse( df$minimo > resultados.ensemble.minimo[[4]], yes = 1,no = 0) ## predicciones aplicando el ensemble de operador minimo y usando el punto de corte que obtuve con el training
 
@@ -48,7 +53,8 @@ porcentaje.bien.clasificados <- 100*sum(bien.clasificados, na.rm = TRUE)/length(
 
 resultado.final <- list("AUC de la curva ROC", AUC.dude, "punto de corte", resultados.ensemble.minimo[[4]], "% bien clasificados test set", porcentaje.bien.clasificados,"Classification Matrix", tabla.bien.mal.clasificados) ## lista con todos los resultados que quiero que aparezcan cuando aplico la funcion
 
-resultado.final ## pongo el resultado final
+resultado.final ## pongo el resultado final. Sirve para verificar que esta todo bien
+
 
 
 
@@ -93,19 +99,28 @@ f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo
 f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
 
 axis.x <- list(title="Prevalence", ## opciones para el eje x
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1,## para cambiar la fuente del titulo
+               tickfont = f2,## para cambiar la fuente de la marca de los ejes
+               showgrid = T, ## si se muestra la cuadricula
+               gridwidth = 10, ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
+
 
 axis.y <- list(title="Sensitivity/Specificity", ## opciones para el eje y
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1,## para cambiar la fuente del titulo
+               tickfont = f2,## para cambiar la fuente de la marca de los ejes
+               showgrid = T , ## si se muestra la cuadricula
+               gridwidth = 10, ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
+
 
 axis.z <- list(title="PPV",  ## opciones para el eje z
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1,## para cambiar la fuente del titulo
+               tickfont = f2,## para cambiar la fuente de la marca de los ejes
+               showgrid = T , ## si se muestra la cuadricula
+               gridwidth = 10, ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
+
 
 scene <- list(              ## resumo las info de los ejes en esta variable llamada "scene"
         xaxis = axis.x,
@@ -118,11 +133,101 @@ p<-plot_ly(x= ~Prevalence, y = ~Sensitivity/Specificity, z = ~PPV, type = "surfa
 
 p
 
-htmlwidgets::saveWidget(as.widget(p), "PPV.html") ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
+htmlwidgets::saveWidget(as.widget(p), file =  paste(clase," IAC_LogP", ".html", sep="")) ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
 
 
 
 
 
+##########################################################################
+
+#     LOOP PARA HACER VARIOS GRAFICOS 3D DE MANERA AUTOMATICA
+
+##########################################################################
+
+##########################################################################
+
+
+secuencia <- seq(from = 5, to=30 , by = 5) 
+
+for( j in secuencia) {
+
+
+df <- clasificaciones.test.set.ensemble.minimo.lm2(test.set  = "dude y test set curado.csv",cant.modelos = j, x = tabla.AUC.ordenadas.test.set)  ## aplico la funcion anterior para obtener un data frame con los valores de score minimo y la clase real
+
+df$clase[df$clase == -1] <- 0 ## esto es por si llega a haber en el archivo original haber puesto a los inactivos como -1, pasarlos a 0
+
+library(pROC)
+
+curva.ROC.dude <- roc(response = df$clase, predictor = df$minimo, direction = "<" ) ## calculo de la curva ROC para los resultados de la base dude
+
+tabla.puntos.curva.roc<- as.data.frame(t(as.data.frame(coords(roc=curva.ROC.dude,x="all"))))## lo que hago es obtener todos los valores de sensibilidad y especificidad, los vuelvo data frame y los traspongo para obtener una tabla con columnas thershold sensitivity y specificity
+
+tabla.puntos.curva.roc$se.sp <- tabla.puntos.curva.roc$sensitivity/tabla.puntos.curva.roc$specificity ## creo una columna donde estan los valores de sensiblidad/especificidad, o sea la division de estos valores
+
+tabla.puntos.curva.roc.limpia <- tabla.puntos.curva.roc[ tabla.puntos.curva.roc$se.sp <= 2, ]  ### elimino los valores de sensiblidad/especificidad mayores a 2 porque no me dan informacion para el grafico
+
+tabla.puntos.curva.roc.limpia <- tabla.puntos.curva.roc.limpia[ !tabla.puntos.curva.roc.limpia$se.sp == 0, ] ## elimino los valores de sensibilidad/espeficidad que son iguales a cero porque tampoco me sirven para graficar
+
+Sensitivity <- tabla.puntos.curva.roc.limpia$sensitivity ##extraigo los valores de Sensitivity
+
+Specificity <- tabla.puntos.curva.roc.limpia$specificity##extraigo los valores de Specificity
+
+Prevalence <- seq(from =0 , to =0.01, by=0.001) ## armo una secuencia de Prevalences donde voy a calcular el PPV
+
+list.PPV<-list() ##creo lista vacia donde voy a ponerlos valorse de PPV calculados
+
+for (i in 1:length(Prevalence)){ ##loop donde para cada Prevalence hago un barrido para los diferentes valores de Sensitivity/Specificity, asi calculo el PPV
+        
+        list.PPV[[i]] <- (Sensitivity*Prevalence[i])/(Sensitivity*Prevalence[i] + (1- Specificity)*(1- Prevalence[i]))##calculo del PPV
+        
+}
+
+PPV <- matrix(unlist(list.PPV), nrow= length(list.PPV[[1]]), byrow=FALSE) ## es una matriz donde las columnas son las diferentes Prevalences y las filas son las diferentes relaciones Sensitivity/Specificity, y los valores de cada celda es la PPV correspondiente para esos valores
+
+Prevalence <- as.list(Prevalence)
+
+library(plotly)
+
+f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo de los ejes
+
+f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
+
+axis.x <- list(title="Prevalence", ## opciones para el eje x
+               titlefont = f1,## para cambiar la fuente del titulo
+               tickfont = f2,## para cambiar la fuente de la marca de los ejes
+               showgrid = T, ## si se muestra la cuadricula
+               gridwidth = 10, ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
+
+
+axis.y <- list(title="Sensitivity/Specificity", ## opciones para el eje y
+               titlefont = f1,## para cambiar la fuente del titulo
+               tickfont = f2,## para cambiar la fuente de la marca de los ejes
+               showgrid = T , ## si se muestra la cuadricula
+               gridwidth = 10, ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
+
+
+axis.z <- list(title="PPV",  ## opciones para el eje z
+               titlefont = f1,## para cambiar la fuente del titulo
+               tickfont = f2,## para cambiar la fuente de la marca de los ejes
+               showgrid = T , ## si se muestra la cuadricula
+               gridwidth = 10, ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
+
+
+scene <- list(              ## resumo las info de los ejes en esta variable llamada "scene"
+        xaxis = axis.x,
+        yaxis = axis.y,
+        zaxis = axis.z)
+
+####IMPORTANTE##### SABER QUE LAS COLUMNAS DE LA MATRIX EN Z SE CORRESPONDEN A X Y LAS FILAS DE Z SE CORRESPONDEN A Y 
+
+p<-plot_ly(x= ~Prevalence, y = ~Sensitivity/Specificity, z = ~PPV, type = "surface") %>% layout( title ="3D Surface PPV" , scene = scene)  # hago el grafico de superficie 3D, aca especifico el nombre del grafico y luego en scene pongo la variable scene que tiene los formatos deseados
+
+htmlwidgets::saveWidget(as.widget(p), file =  paste("GRAFICO 3D PPV " ,j," MEJORES MODELOS ENSEMBLE MINIMO", ".html", sep="")) ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
+
+}
 
 

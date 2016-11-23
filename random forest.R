@@ -1,11 +1,22 @@
+###########################################
 
 
-###### RANDOM FOREST CLASIFICATORIO #######
+## RANDOM FOREST CLASIFICATORIO  ##
+
+
+###########################################
 
 
 
-random.forest <- function(training ="Descriptores Training Set Sofi.csv", test="Descriptorres DUDE2 Sofi.csv",cant.arboles = 500 ) {
-        
+
+
+
+training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set
+
+test.set <- "Dtestmiristoil.csv"  ### nombre del archivo con el test set
+
+cant.arboles <- 2000  ### cant de arboles que pongo en el RF
+
 is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
         
 if (is.installed("data.table") == FALSE) {install.packages("data.table")} #si openxlsx no est? instalado hago que me lo instale automaticamente
@@ -20,9 +31,7 @@ library(randomForest) # cargo el paquete random forest
 
 library(pROC) ## cargo el paquete pROC
 
-set.seed(125) ## seteo la semilla para que sea reproducible el random forest
-
-training <- as.data.frame(fread(input = training, check.names = TRUE)) #leo el archivo con mis descriptores del training set
+training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
 training <- training[ , apply(training, 2, function(x) !any(is.na(x)))] ### elimino las columnas que contienen NaN
 
@@ -38,7 +47,7 @@ training <- training[, -which(names(training) == names(training)[duplicated(name
 
 }
 
-test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
+test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
 test$clase <- as.factor(test$clase) # hago que la clase sea factor 
 
@@ -50,6 +59,8 @@ test <- test[, -which(names(test) == names(test)[duplicated(names(test))])] ## e
 
 }
 
+set.seed(125) ## seteo la semilla para que sea reproducible el random forest
+
 rf <- randomForest(clase ~., data=training ,importance=TRUE, do.trace = TRUE, ntree = cant.arboles)## lo que hacemos aca es random forest
 
 plot(rf, main = "Gráfico OOB error Random Forest") ## hago que grafique el error versus el numero de arboles en el training set
@@ -57,6 +68,18 @@ plot(rf, main = "Gráfico OOB error Random Forest") ## hago que grafique el error
 legend("top", colnames(rf$err.rate),col=1:4,cex=0.8,fill=1:4) ## con esto hago que aparezcan las referencias en el grafico anterior
 
 varImpPlot(rf, n.var=10, main= "Importancia de variables en RF") ## grafico la importancia de las variables segun Random Forest
+
+
+############################
+
+# MIRO LOS GRAFICOS Y VEO CUAL ES EL NUMERO DE ARBOLES OPTIMO
+
+############################
+
+
+cant.arboles.optimo <- 500  #### ESTO LO SACO DE LOS GRAFICOS QUE HICE ANTES DE OOB
+
+rf <- randomForest(clase ~., data=training ,importance=TRUE, do.trace = TRUE, ntree = cant.arboles.optimo)## vuelvo a correr el random forest pero esta vez con el numero optimo de arboles
 
 predicciones.train <- predict(object = rf, newdata = training, type="prob") ## predicciones en el training set expresadas como probabilidad
 
@@ -66,25 +89,12 @@ predicciones.test <- predict(object = rf, newdata = test, type="prob")  ## predi
 
 auc.test <- auc(roc(predictor= predicciones.test[,2], response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
 
-resultado <- list("Modelo armado por Random Forest", rf , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+resultado.rf <- list("Modelo armado por Random Forest", rf ,"Numero de Árboles Óptimo", cant.arboles.optimo , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
 
-resultado
-
-}
+resultado.rf
 
 
 
-
-
-####### HASTA ACA ES LA FUNCION, LUEGO HAGO CORRER EL COMANDO DE ABAJO #####
-
-
-
-
-
-resultado.rf <- random.forest(training ="Dtrainingmiristoil.csv", test="Ddudes2miristoil.csv",cant.arboles = 1000 )  ### con esto hago correr para obtener resultados
-
-resultado.rf ## imprimo los resultados obtenidos. A su vez obtengo 4 graficos que se imprimen automaticamente
 
 
 
@@ -96,9 +106,13 @@ resultado.rf ## imprimo los resultados obtenidos. A su vez obtengo 4 graficos qu
 
 
 
+
+
+
+
 rf <- resultado.rf[[2]] ### es la funcion obtenida de Random Forest
 
-test <- "Descriptorres DUDE2 Sofi.csv"  ### nombre del test set
+test <- "Dtestmiristoil.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
@@ -138,7 +152,7 @@ plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="
 
 
 
-dude <- "Descriptorres DUDE2 Sofi.csv"
+dude <- "Ddudes2miristoil.csv"
 
 dude <- as.data.frame(fread(input = dude, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
@@ -195,19 +209,25 @@ f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo
 f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
 
 axis.x <- list(title="Prevalence", ## opciones para el eje x
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1, ## para cambiar la fuente del titulo
+               tickfont = f2, ## para cambiar la fuente de la marca de los ejes
+               showgrid = T, ## si se muestra la cuadricula
+               gridwidth = 10, ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
 
 axis.y <- list(title="Sensitivity/Specificity", ## opciones para el eje y
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1, ## para cambiar la fuente del titulo
+               tickfont = f2, ## para cambiar la fuente de la marca de los ejes
+               showgrid = T , ## si se muestra la cuadricula
+               gridwidth = 10,  ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
 
 axis.z <- list(title="PPV",  ## opciones para el eje z
-               titlefont = f1,
-               tickfont = f2,
-               showgrid = T)
+               titlefont = f1, ## para cambiar la fuente del titulo
+               tickfont = f2, ## para cambiar la fuente de la marca de los ejes
+               showgrid = T , ## si se muestra la cuadricula
+               gridwidth = 10,  ## el ancho de la linea de la cuadricula
+               linewidth = 10) ## el ancho de la linea del eje
 
 scene <- list(              ## resumo las info de los ejes en esta variable llamada "scene"
         xaxis = axis.x,
