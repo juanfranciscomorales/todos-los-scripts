@@ -95,7 +95,7 @@ f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo
 
 f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
 
-axis.x <- list(title="Prevalence", ## opciones para el eje x
+axis.x <- list(title="Ya", ## opciones para el eje x
                titlefont = f1,## para cambiar la fuente del titulo
                tickfont = f2,## para cambiar la fuente de la marca de los ejes
                showgrid = T, ## si se muestra la cuadricula
@@ -149,7 +149,7 @@ secuencia <- seq(from = 5, to=30 , by = 5)
 
 for( j in secuencia) {
 
-        df <- clasificaciones.test.set.ensemble.promedio.lm2(test.set  = "dude y test set curado.csv",cant.modelos =  j, x = tabla.AUC.ordenadas.test.set)  ## aplico la funcion anterior para obtener un data frame con los valores de score promedio y la clase real
+        df <- clasificaciones.test.set.ensemble.promedio.lm2(test.set  = "Descriptores DUDE completa sofi.csv",cant.modelos =  j, x = tabla.AUC.ordenadas.test.set)  ## aplico la funcion anterior para obtener un data frame con los valores de score promedio y la clase real
         
         df$clase[df$clase == -1] <- 0 ## esto es por si llega a haber en el archivo original haber puesto a los inactivos como -1, pasarlos a 0
         
@@ -189,7 +189,7 @@ for( j in secuencia) {
         
         f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
         
-        axis.x <- list(title="Prevalence", ## opciones para el eje x
+        axis.x <- list(title="Ya", ## opciones para el eje x
                        titlefont = f1,## para cambiar la fuente del titulo
                        tickfont = f2,## para cambiar la fuente de la marca de los ejes
                        showgrid = T, ## si se muestra la cuadricula

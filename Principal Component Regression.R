@@ -203,7 +203,7 @@ f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo
 
 f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
 
-axis.x <- list(title="Prevalence", ## opciones para el eje x
+axis.x <- list(title="Ya", ## opciones para el eje x
                titlefont = f1, ## para cambiar la fuente del titulo
                tickfont = f2, ## para cambiar la fuente de la marca de los ejes
                showgrid = T, ## si se muestra la cuadricula

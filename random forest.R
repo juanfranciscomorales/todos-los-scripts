@@ -15,7 +15,7 @@ training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el trainin
 
 test.set <- "Dtestmiristoil.csv"  ### nombre del archivo con el test set
 
-cant.arboles <- 2000  ### cant de arboles que pongo en el RF
+cant.arboles <- 3000  ### cant de arboles que pongo en el RF
 
 is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
         
@@ -61,13 +61,15 @@ test <- test[, -which(names(test) == names(test)[duplicated(names(test))])] ## e
 
 set.seed(125) ## seteo la semilla para que sea reproducible el random forest
 
-rf <- randomForest(clase ~., data=training ,importance=TRUE, do.trace = TRUE, ntree = cant.arboles)## lo que hacemos aca es random forest
+rf <- randomForest(clase ~., data=training ,importance=TRUE, do.trace = TRUE, ntree = cant.arboles , proximity = TRUE)## lo que hacemos aca es random forest
 
 plot(rf, main = "Gráfico OOB error Random Forest") ## hago que grafique el error versus el numero de arboles en el training set
 
 legend("top", colnames(rf$err.rate),col=1:4,cex=0.8,fill=1:4) ## con esto hago que aparezcan las referencias en el grafico anterior
 
 varImpPlot(rf, n.var=10, main= "Importancia de variables en RF") ## grafico la importancia de las variables segun Random Forest
+
+MDSplot(rf = rf,fac = training$clase , k =3) # Plot the scaling coordinates of the proximity matrix from randomForest. Hace escalado multidimensional de la matrix de proximidad. es una forma de ver si me separa las clases
 
 
 ############################
@@ -79,7 +81,15 @@ varImpPlot(rf, n.var=10, main= "Importancia de variables en RF") ## grafico la i
 
 cant.arboles.optimo <- 500  #### ESTO LO SACO DE LOS GRAFICOS QUE HICE ANTES DE OOB
 
-rf <- randomForest(clase ~., data=training ,importance=TRUE, do.trace = TRUE, ntree = cant.arboles.optimo)## vuelvo a correr el random forest pero esta vez con el numero optimo de arboles
+rf <- randomForest(clase ~., data=training ,importance=TRUE, do.trace = TRUE, ntree = cant.arboles.optimo , keep.forest= TRUE , proximity = TRUE)## vuelvo a correr el random forest pero esta vez con el numero optimo de arboles
+
+plot(rf, main = "Gráfico OOB error Random Forest") ## hago que grafique el error versus el numero de arboles en el training set
+
+legend("top", colnames(rf$err.rate),col=1:4,cex=0.8,fill=1:4) ## con esto hago que aparezcan las referencias en el grafico anterior
+
+varImpPlot(rf, n.var=10, main= "Importancia de variables en RF") ## grafico la importancia de las variables segun Random Forest
+
+MDSplot(rf = rf,fac = training$clase , k =3) # Plot the scaling coordinates of the proximity matrix from randomForest. Hace escalado multidimensional de la matrix de proximidad. es una forma de ver si me separa las clases
 
 predicciones.train <- predict(object = rf, newdata = training, type="prob") ## predicciones en el training set expresadas como probabilidad
 
@@ -112,7 +122,7 @@ resultado.rf
 
 rf <- resultado.rf[[2]] ### es la funcion obtenida de Random Forest
 
-test <- "Dtestmiristoil.csv"  ### nombre del test set
+test <- "Ddudes1miristoil.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
@@ -136,9 +146,14 @@ plot(performance(predicciones , measure = "tpr" , x.measure = "fpr"), main ="ROC
 
 abline(0,1) ### agrego la linea que muestra como seria la clasificacion si fuese aleatoria
 
-plot(performance(predicciones , measure = "mat" , x.measure = "cutoff"), main = "MCC vs cutoff") ## grafico el valor del MCC(Matthews Correlation Coefficient) , mientas mas cercano a 1 mejor, mayor a 0.7 seria optimo
+plot(performance(predicciones , measure = "mat" , x.measure = "cutoff"), main = "MCC vs cutoff") ## grafico el valor del MCC(Matthews Correlation Coefficient) , mientas mas cercano a 1 mejor, mayor a 0.7 seria optimo. Es una medida de calidad de clasificacion binaria
 
 plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="PPV vs cutoff") ## grafico de PPV versus punto de corte
+
+
+
+
+
 
 
 
@@ -208,7 +223,7 @@ f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo
 
 f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
 
-axis.x <- list(title="Prevalence", ## opciones para el eje x
+axis.x <- list(title="Ya", ## opciones para el eje x
                titlefont = f1, ## para cambiar la fuente del titulo
                tickfont = f2, ## para cambiar la fuente de la marca de los ejes
                showgrid = T, ## si se muestra la cuadricula
@@ -255,10 +270,15 @@ htmlwidgets::saveWidget(as.widget(p), "PPV.html") ### GUARDO EL GRÁFICO COMO HTM
 
 
 
-
-
-
 setwd("D:/Dropbox/R/descriptores drugbank") ### seteo la carpeta de drugbank. Si lo hago con sweatlead tengo que setear otra carpeta
+
+## la carpeta de arriba es la de la facu
+
+setwd("C:/Users/Francisco/Dropbox/R/descriptores drugbank") ## esta carpeta es la de la notebook
+
+
+
+
 
 base.datos <- "base drugbank 24-10-16.csv" ### nombre del archivo con la base de datos
 
@@ -281,4 +301,56 @@ predicciones.base.datos$NOMBRE <- df.base.datos$NAME
 library(openxlsx)
 
 write.xlsx(x= predicciones.base.datos, file= "Screening por Random Forest.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
+
+
+
+
+
+######################## SUMO DOMINIO DE APLICABILIDAD A PREDICCIONES DE BASE DE DATOS ####################
+
+
+
+
+
+base.datos.solo.descr.train <- df.base.datos[,colnames(training)[-1]] ## con esto hago que mi base de datos tenga las mismas columnas que mi training set. Pongo -1 para eliminar la columna clase del training. Hago esto para en el paso siguiente poder unir ambas tablas porque si tienen diferentes num de columnas no las puedo unir
+
+base.datos.training <- rbind(base.datos.solo.descr.train, training[,-1]) ### junto el training y la base de datos en un solo data frame. las filas de arriba son las de la base de datos. Lo hago para poder luego extraer la info de proximidad de la base de datos contra el training
+
+base.datos.training <- na.roughfix(base.datos.training) ## con esto hago que se imputen los NA por valores que son estimados por la media/moda. esto lo hago para poder calcular el dominio de aplicabilidad. Si no hago esto hay menos filas y columnas y no se que fila es cada compuesto. Los valores que son NA como predije su actividad antes, si es NA, lo va a seguir siendo
+
+predicciones.base.datos.training <- predict(object = rf, newdata = base.datos.training, type="prob", proximity = TRUE)  ## predigo para luego ver la proximidad de la base de datos con respecto al training 
+
+proximidad.base.datos <- as.data.frame(predicciones.base.datos.training$proximity[1:nrow(df.base.datos),(nrow(df.base.datos)+1):ncol(predicciones.base.datos.training$proximity)]) ## aca extraigo las filas y columnas que solo necesito. Son las que comparan la base de datos con respecto al training
+
+nombres.col <- sprintf("training %d",seq(1:nrow(training))) ## creo el vector con los nombres para las columnas (training set)
+
+nombres.filas <- df.base.datos$NAME ## creo el vector para el nombre de las filas (base de datos)
+
+colnames(proximidad.base.datos) <- nombres.col ## nombro las columnas
+
+row.names(proximidad.base.datos) <- nombres.filas ## nombro las filas
+
+punto.corte.1 <- c(0.5,0.6,0.7,0.8,0.9) ## creo la secuencia de puntos de corte de proximidad que voy a utilizar
+
+matrix.suma <- matrix(nrow = nrow(proximidad.base.datos) , ncol = length(punto.corte.1) ) ## creo una matrix vacia donde voy a guardar los resultados de aplicar los distintos puntos de corte de proximidad
+
+for ( i in 1:length(punto.corte.1)) { ## hago un loop a traves de la tabla de proximidad, para saber cuantos compuestos cumplen con el corte de proximidad
+        
+        resultados.punto.corte.1 <- proximidad.base.datos > punto.corte.1[i] ## aplico el punto de corte de proximidad a mi tabla de proximidad de la base de datos contra el training
+        
+        matrix.suma[,i] <- rowSums(x = resultados.punto.corte.1 , na.rm = FALSE) ## realizo la suma de la cantidad de compuestos que cumplen con el punto de corte y lo guardo en la matrix vacia que habia armado
+        
+}
+
+colnames(matrix.suma) <- sprintf("DA - punto corte proximidad %f",punto.corte.1) ## creo el vector con los nombres para las columnas (training set)
+
+predicciones.base.datos.DA <- cbind(predicciones.base.datos, matrix.suma) ## esta es la tabla que contiene las predicciones y los resultados del dominio de aplicabilidad hecho por proximidad
+
+library(openxlsx) ## abro el paquete openxlsx para poder guardar el data frame con los resultados en un excel
+
+write.xlsx(x= predicciones.base.datos.DA, file= "Screening por Random Forest con Dominio Aplicabilidad.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
+
+
+
+
 

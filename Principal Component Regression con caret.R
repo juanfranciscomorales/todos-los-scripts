@@ -1,23 +1,30 @@
-###########################################
-
-
-## # Support Vector Classifier ##
-
 
 ###########################################
 
 
-# Support Vector Classifier
+## PRINCIPAL COMPONENT REGRESSION ##
 
-library(data.table)
 
-library(caret)
+###########################################
 
-library(pROC) ## cargo el paquete pROC
+is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
 
-training.set <- "training set curado.csv"
+if (is.installed("data.table") == FALSE) {install.packages("data.table")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
-test.set <- "test set curado 2.csv"
+if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+library(caret) ## cargo el paquete caret que tiene varias funciones que voy a usar
+
+library(data.table) ## cargo este paquete para leer rapido los archivos
+
+library(pROC)
+
+
+training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set
+
+test.set <- "Dtestmiristoil.csv"  ### nombre del archivo con el test set
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
@@ -29,50 +36,57 @@ sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las column
 
 training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
-training$clase <- as.factor(training$clase) ## guardo la columna clase en un elemento
-
-library(e1071) ## cargo el paquete que tiene la funcion svm
-
-set.seed(1) ## seteo la semilla
-
-tune.out <- tune( svm , clase~., data = training , kernel = "radial" , type = "C-classification",  scale=TRUE , probability =TRUE , ranges= list( gamma=2^(-15:3) , cost=2^(-5:15) ) , tunecontrol = tune.control(sampling = "cross", cross= 10))## tuneo los parametros para encontrar el que da menor error
-
-summary(tune.out) ## e imprime un sumario con los resultados del tuneo
-
-bestmod <- tune.out$best.model### me tira cual es el mejor modelo segun la funcion de tuneo
-
-summary(bestmod) ## un sumario del mejor modelo segun la funcion tune
-
-svmfit <- svm(clase~. , data = training , kernel ="radial" , type="C-classification" ,  scale =TRUE , probability =TRUE ,na.action = na.omit, gamma= bestmod$gamma , cost = bestmod$cost , cross = 10) ### armo el modelo con los mejores parametros segun el tuneo y le hago un Leave One Out Cross-Validation
-
-svmfit
-
-summary(svmfit)
-
-predicciones.train <- predict(object = svmfit, newdata = training, probability = TRUE , na.action = na.omit) ## predicciones en el training set expresadas como probabilidad
-
-predicciones.train.prob <- as.data.frame(attr(predicciones.train, "probabilities"))$`1`
-
-auc.training <- auc(roc(predictor = predicciones.train.prob,response = training$clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
-
-table(true= training$clase ,  pred=predict(svmfit , training)) ## tabla de confusion en el training set
-
 test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-predicciones.test <- predict(object = svmfit, newdata = test, probability = TRUE , na.action = na.omit) ### predigo en el test set
 
-predicciones.test.prob <- as.data.frame(attr(predicciones.test, "probabilities"))$`1`
 
-## ME TIRA ERROR PORQUE TENGO NA EN COLUMNAS QUE DEBEN CONTENER DATOS #####
+## seteo para la cross validation
 
-auc.test <- auc(roc(predictor= predict.test.prob, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
+ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                     
+                     number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
+                     
+                     repeats = 5 ) # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
 
-table(true=test$clase, pred= predicciones.test)
 
-resultado.svm <- list("Modelo armado por Support Vector Machine", svmfit ,"Gamma Óptimo", bestmod$gamma , "Cost Óptimo" , bestmod$cost , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+## con esto seteo la busqueda para seleccionar los parametros optimos
 
-resultado.svm
+pcrGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de principal component regression
+        
+        ncomp = 1:100) ## este parametro es para ver la cantidad de componentes optimo
 
+
+### Entreno el modelo por pcr y optimizo los valores
+
+pcrfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer pcr. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
+                
+                data = training, ## le digo cuales son mis datos para armar el modelo
+                
+                method = "pcr", ## aca le digo que use principal component regression para armar el modelo
+                
+                trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
+                
+                tuneGrid = pcrGrid , ## hago pasar el elemento pcrGrid para probar y encontrar cuales son los valores optimos 
+                
+                preProcess = c("center","scale") ) ## aca le digo que me centre y me escale los datos antes de armar el modelo
+                
+
+
+pcrfit ## imprimo el resultado
+
+plot(pcrfit) ## grafico los resultados del cross validation
+
+predicciones.train <- predict(object = pcrfit, newdata = training, type ="raw" , na.action = na.pass) ## predicciones en el training set expresadas como probabilidad
+
+auc.training <- auc(roc(predictor = predicciones.train,response = training$clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
+
+predicciones.test <- predict(object = pcrfit, newdata = test, type = "raw", na.action = na.pass) ### predigo en el test set
+
+auc.test <- auc(roc(predictor= predicciones.test, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
+
+resultado.pcr <- list("Modelo armado por Principal Component Regression con caret", pcrfit , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+
+resultado.pcr
 
 
 ######### GRAFICOS PARA ANALIZAR LOS RESULTADOS ############
@@ -82,21 +96,15 @@ resultado.svm
 
 
 
-
-
-svmfit <- resultado.svm[[2]] ### es la funcion obtenida de Random Forest
-
-test <- "test set curado 2.csv"  ### nombre del test set
+test <- "Ddudes2miristoil.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-predicciones.test <- predict(object = svmfit, newdata = test, probability = TRUE , na.action = na.omit)  ## predicciones en el test set expresadas como probabilidad
-
-predicciones.test.prob <- as.data.frame(attr(predicciones.test, "probabilities"))$`1`
+predicciones.test <- predict(pcrfit, newdata = test, type="raw" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 library(ROCR) ## abro el paquete ROCR
 
-predicciones <- prediction(predictions = predicciones.test.prob, labels = test$clase) ## genero los valores para armar los diferentes graficos
+predicciones <- prediction(predictions = predicciones.test, labels = test$clase) ## genero los valores para armar los diferentes graficos
 
 plot(performance(predicciones , measure = "tpr" , x.measure = "fpr"), main ="ROC Curve Test o Dude") ## grafico de PPV versus punto de corte
 
@@ -111,6 +119,9 @@ plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="
 
 
 
+
+
+
 ################### GRAFICO DE SUPERFICIE 3D - PPV  #######################
 
 
@@ -118,15 +129,14 @@ plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="
 
 
 
-dude <- "test set curado 2.csv"
 
-dude <- as.data.frame(fread(input = dude, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
+dude.set <- "Descriptores DUDE 1 Sofi.csv"
 
-predicciones.dude <- predict(object = svmfit, newdata = test, probability = TRUE , na.action = na.omit)  ## predicciones en el test set expresadas como probabilidad
+dude <- as.data.frame(fread(input = dude.set, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
-predicciones.dude.prob <- as.data.frame(attr(predicciones.dude, "probabilities"))$`1`
+predicciones.dude <- predict(pcrfit, newdata = dude, type="raw" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
-curva.ROC.dude <- roc(response = dude$clase, predictor = predicciones.dude.prob, direction = "<" , plot = TRUE) ## calculo de la curva ROC para los resultados de la base dude
+curva.ROC.dude <- roc(response = dude$clase, predictor = predicciones.dude, direction = "<", plot = TRUE) ## calculo de la curva ROC para los resultados de la base dude
 
 auc(curva.ROC.dude) ### imprimo el AUC de la curva ROC para ver si coincide con los resultados anteriores
 
@@ -222,16 +232,19 @@ base.datos <- "base drugbank 24-10-16.csv" ### nombre del archivo con la base de
 
 df.base.datos <- as.data.frame(fread(input=base.datos, check.names = TRUE)) #leo el archivo con la base de datos
 
-predicciones.base.datos <- predict(object = svmfit, newdata = df.base.datos, probability = TRUE , na.action = na.omit)  ## predicciones en el test set expresadas como probabilidad
+predicciones.base.datos <- as.data.frame(predict(pcrfit, newdata = df.base.datos, type="raw" , na.action = na.pass))  ## predicciones en la base de datos expresadas como probabilidad
 
-predicciones.base.datos.prob <- as.data.frame(attr(predicciones.base.datos, "probabilities"))
+colnames(predicciones.base.datos) <- "SCORE por PCR"
 
-colnames(predicciones.base.datos.prob) <- c("Prob. Activo" , "Prob. Inactivo")
-
-predicciones.base.datos.prob$NOMBRE <- df.base.datos$NAME
+predicciones.base.datos$NOMBRE <- df.base.datos$NAME ## agrego una columna que se corresponde con los nombres verdaderos de cada compuesto en la base de datos
 
 library(openxlsx)
 
-write.xlsx(x= predicciones.base.datos, file= "Screening por Support Vector Machine.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
+write.xlsx(x= predicciones.base.datos, file= "Screening por Principal Component Regression con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
+
+
+
+
+
 
 

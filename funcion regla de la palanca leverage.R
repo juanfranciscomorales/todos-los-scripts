@@ -1,8 +1,23 @@
 
 
-#Al archivo "tabla scores drugbank.xlsx" primero le elimino los compuestos sin scores y luego los ordeno de mayor a menor, esto lo hago antes de leer el archivo
 
 setwd("D:/Dropbox/R/descriptores drugbank")## carpeta de trabajo
+
+
+
+
+
+### fijarme de tener todos los archivos en la carpeta de trabajo, estos archivos son :
+
+# training set
+
+#base de datos
+
+#tabla con los scores del screening ordenada, con los de mayor score arriba en la tabla
+#Al archivo "tabla scores drugbank.xlsx" primero le elimino los compuestos sin scores y luego los ordeno de mayor a menor, esto lo hago antes de leer el archivo
+
+
+
 
 regla.palanca <- function ( training.set ="trainingset.csv", base.datos = "drugbank.csv", tabla.scores  = "tabla scores drugbank.xlsx" , cant.modelos = 10, x = tabla.AUC.ordenadas.test.set,  cant.compuestos = 500 ) {
 

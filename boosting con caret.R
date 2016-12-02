@@ -13,55 +13,113 @@ is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#
 
 if (is.installed("data.table") == FALSE) {install.packages("data.table")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
-if (is.installed("gbm") == FALSE) {install.packages("gbm")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
 if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
-library(data.table)
+library(caret) ## cargo el paquete caret que tiene varias funciones que voy a usar
 
-library(gbm) # cargo el paquete gbm que tiene la funcion para hacer boosting con trees
+library(data.table) ## cargo este paquete para leer rapido los archivos
 
-library(pROC) ## cargo el paquete pROC
 
-library(ggplot2)
 
-training.set <- "Dtrainingmiristoil.csv"
 
-test.set <-  "Dtestmiristoil.csv"
+training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set
+
+test.set <- "Dtestmiristoil.csv"  ### nombre del archivo con el test set
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
 training <- training[ , apply(training, 2, function(x) !any(is.na(x)))] ### elimino las columnas que contienen NaN
 
-training <- training[,-1] # elimino la columna con los nombres, dejo solo la columna clase con los descriptores
+training <- training[,-1] # elimino la columna nombres, dejo solo las columnas con los descriptores y la clase
 
-training <- Filter(function(x) sd(x) != 0, training) ## para eliminar las columnas que su desviacion estandar sd = 0 , o sea no tienen variabilidad esas columnas
+sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las columnas que tienen sd = 0 ( o sea sin varianza) y las que tienen muy muy poca varianza
+
+training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
+
+training$clase <- as.factor(training$clase) ## hago que la columna clase sea como factor para poder hacer que el boosting sea clasificatorio
+
+clase <- training$clase ## guardo los valores de clase para despues
 
 test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-set.seed(2) ## seteo la semilla
 
-boosting.cv <- gbm(formula = clase~ ., distribution = "bernoulli" , data = training,  n.trees = 5000 , cv.folds = 10 , shrinkage = 0.01 , interaction.depth = 1 , class.stratify.cv =TRUE , verbose = TRUE) ### aca hago el boosting en si. A su vez hace cross-validation con un k = 10. Esta cross-validation despues es la usada por la funcion gbm.perf para encontrar el numero optimo de arboles
 
-variables.importantes <- head(summary(boosting.cv), n = 20) ## extraigo un data frame que contiene los valores de influencia y el nombre de las variables. con n decido cuantas variables mas importantes extraigo
+## seteo para la cross validation
+
+ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                     
+                     number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
+                     
+                     repeats = 3 ) # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                     
+
+## con esto seteo la busqueda para seleccionar los parametros optimos
+
+gbmGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
+        
+                        interaction.depth = 1:10, ## este parametro es para ver la profundidad del arbol optima
+                        
+                        n.trees = (1:10)*100, ## este parametro es para ver el numero optimo de arboles
+                        
+                        shrinkage = 0.01 , ## es un valor de restriccion. Tengo que buscar el valor optimo. Mientras mas bajo mejor pero el costo computacional es mayor
+                        
+                        n.minobsinnode = 10 ) ## el numero minimo de observaciones en cada hoja. Si es muy bajo puede terminar en overfitting
+
+
+# tardo 3 horas asi en optimizar los parametros
+
+### Entreno el modelo por gbm y optimizo los valores
+
+set.seed(1)
+
+ptm <- proc.time()
+
+gbmfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
+                
+                data = training, ## le digo cuales son mis datos para armar el modelo
+                
+                method = "gbm", ## aca le digo que use knn para armar el modelo
+                
+                trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
+                
+                tuneGrid = gbmGrid , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
+                
+                distribution = "bernoulli", ## esto lo hago para que sea clasificatorio
+                
+                verbose = TRUE)  ## con esto hago que se me impriman los resultados preliminares
+
+proc.time() - ptm
+
+
+gbmfit ## imprimo el resultado
+
+plot(gbmfit) ## grafico los resultados del cross validation
+
+variables.importantes <- head(summary(gbmfit), n = 20) ## extraigo un data frame que contiene los valores de influencia y el nombre de las variables. con n decido cuantas variables mas importantes extraigo
 
 variables.importantes <- transform(variables.importantes, var = reorder(var, rel.inf)) ## este paso lo hago asi en el siguiente grafico me pone ordenadas por la influencia relativa y no por orden alfabetico
 
 ggplot(data = variables.importantes , aes(x = var, y = rel.inf)) + geom_bar(stat="identity", fill="steelblue")  + coord_flip() + theme_minimal() + labs(title = "20 most influence variables in Boosting", y = "Relative Influence" , x = "Variable") + theme(plot.title = element_text(hjust = 0.5))  ## con esto grafico las 20 variables que mas influyen en el armado del modelo
 
-num.arboles.optimo.cv <- gbm.perf(object = boosting.cv , plot.it = TRUE , oobag.curve = FALSE , method = "cv") ## me dice cual es el numero de arboles optimos segun el cross-validation que plantie hacer en la funcion gbm
+library(pROC) ## abro el paquete pROC para hacer las curvas ROC
 
-predicciones.train <-  predict.gbm(object = boosting.cv , newdata = training , n.trees = num.arboles.optimo.cv , type = "response" , single.tree = FALSE , na.action = NULL ) ### predicciones en el training, como type es response el resultado me da como probabilidad
+predicciones.train <- predict(gbmfit, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
 
-auc.training <- auc(roc(predictor = predicciones.train,response = training$clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
+names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
-predicciones.test <-  predict.gbm(object = boosting.cv , newdata = test , n.trees = num.arboles.optimo.cv , type = "response" , single.tree = FALSE , na.action =NULL) ### predicciones en el test, como type es response el resultado me da como probabilidad
+auc.training <- auc(roc(predictor = predicciones.train$Activo,response = clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
 
-auc.test <- auc(roc(predictor= predicciones.test, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
+predicciones.test <- predict(gbmfit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
-resultado <- list("Modelo armado por Boosting", boosting.cv , "Nº de arboles Òptimo",num.arboles.optimo.cv , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
-resultado
+auc.test <- auc(roc(predictor= predicciones.test$Activo, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
+
+resultado.gbm <- list("Modelo armado por Boosting", gbmfit  , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+
+resultado.gbm
 
 
 
@@ -79,11 +137,13 @@ test <- "Ddudes2miristoil.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-predicciones.test <- predict.gbm(object = boosting.cv , newdata = test , n.trees = num.arboles.optimo.cv , type = "response" , single.tree = FALSE , na.action =NULL) ### predicciones en el test, como type es response el resultado me da como probabilidad  ## predicciones en el test set expresadas como probabilidad
+predicciones.test <- predict(gbmfit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+
+names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 library(ROCR) ## abro el paquete ROCR
 
-predicciones <- prediction(predictions = predicciones.test, labels = test$clase) ## genero los valores para armar los diferentes graficos
+predicciones <- prediction(predictions = predicciones.test$Activo, labels = test$clase) ## genero los valores para armar los diferentes graficos
 
 plot(performance(predicciones , measure = "tpr" , x.measure = "fpr"), main ="ROC Curve Test o Dude") ## grafico de PPV versus punto de corte
 
@@ -113,9 +173,11 @@ dude.set <- "Ddudes2miristoil.csv"
 
 dude <- as.data.frame(fread(input = dude.set, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
-predicciones.dude <- predict.gbm(object = boosting.cv , newdata = dude , n.trees = num.arboles.optimo.cv , type = "response" , single.tree = FALSE , na.action =NULL) ### predicciones en el test, como type es response el resultado me da como probabilidad  ## predicciones en el test set expresadas como probabilidad
+predicciones.dude <- predict(gbmfit, newdata = dude, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
-curva.ROC.dude <- roc(response = dude$clase, predictor = predicciones.dude, direction = "<", plot = TRUE) ## calculo de la curva ROC para los resultados de la base dude
+names(predicciones.dude) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
+
+curva.ROC.dude <- roc(response = dude$clase, predictor = predicciones.dude$Activo, direction = "<", plot = TRUE) ## calculo de la curva ROC para los resultados de la base dude
 
 auc(curva.ROC.dude) ### imprimo el AUC de la curva ROC para ver si coincide con los resultados anteriores
 
@@ -211,15 +273,15 @@ base.datos <- "base drugbank 24-10-16.csv" ### nombre del archivo con la base de
 
 df.base.datos <- as.data.frame(fread(input=base.datos, check.names = TRUE)) #leo el archivo con la base de datos
 
-predicciones.base.datos <- as.data.frame(predict.gbm(object = boosting.cv , newdata = df.base.datos, n.trees = num.arboles.optimo.cv , type = "response" , single.tree = FALSE , na.action =NULL)) ### predicciones en el test, como type es response el resultado me da como probabilidad  ## predicciones en el test set expresadas como probabilidad  ## predicciones en la base de datos expresadas como probabilidad
+predicciones.base.datos <- predict(gbmfit, newdata = df.base.datos, type="prob" , na.action = na.pass)  ## predicciones en la base de datos expresadas como probabilidad
 
-colnames(predicciones.base.datos) <- c("Prob. Activo")
+names(predicciones.base.datos) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
-predicciones.base.datos$NOMBRE <- df.base.datos$NAME
+predicciones.base.datos$NOMBRE <- df.base.datos$NAME ## agrego una columna que se corresponde con los nombres verdaderos de cada compuesto en la base de datos
 
 library(openxlsx)
 
-write.xlsx(x= predicciones.base.datos, file= "Screening por Boosting.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
+write.xlsx(x= predicciones.base.datos, file= "Screening por Boosting con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
 
 
 
