@@ -17,7 +17,7 @@ library(pROC) ## cargo el paquete pROC
 
 training.set <- "training set curado.csv"
 
-test.set <- "test set curado 2.csv"
+test.set <- "test set curado.csv"
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
@@ -59,17 +59,19 @@ table(true= training$clase ,  pred=predict(svmfit , training)) ## tabla de confu
 
 test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
+test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
+
 predicciones.test <- predict(object = svmfit, newdata = test, probability = TRUE , na.action = na.omit) ### predigo en el test set
 
 predicciones.test.prob <- as.data.frame(attr(predicciones.test, "probabilities"))$`1`
 
 ## ME TIRA ERROR PORQUE TENGO NA EN COLUMNAS QUE DEBEN CONTENER DATOS #####
 
-auc.test <- auc(roc(predictor= predict.test.prob, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
+auc.test <- auc(roc(predictor= predicciones.test.prob, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
 
 table(true=test$clase, pred= predicciones.test)
 
-resultado.svm <- list("Modelo armado por Support Vector Machine", svmfit ,"Gamma Óptimo", bestmod$gamma , "Cost Óptimo" , bestmod$cost , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+resultado.svm <- list("Modelo armado por Support Vector Machine", svmfit ,"Gamma ?ptimo", bestmod$gamma , "Cost ?ptimo" , bestmod$cost , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
 
 resultado.svm
 
@@ -86,9 +88,11 @@ resultado.svm
 
 svmfit <- resultado.svm[[2]] ### es la funcion obtenida de Random Forest
 
-test <- "test set curado 2.csv"  ### nombre del test set
+test <- "test set curado.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
+
+test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
 
 predicciones.test <- predict(object = svmfit, newdata = test, probability = TRUE , na.action = na.omit)  ## predicciones en el test set expresadas como probabilidad
 
@@ -118,11 +122,13 @@ plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="
 
 
 
-dude <- "test set curado 2.csv"
+dude <- "dude y test set curado.csv"
 
 dude <- as.data.frame(fread(input = dude, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
-predicciones.dude <- predict(object = svmfit, newdata = test, probability = TRUE , na.action = na.omit)  ## predicciones en el test set expresadas como probabilidad
+dude[is.na(dude)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
+
+predicciones.dude <- predict(object = svmfit, newdata = dude, probability = TRUE , na.action = na.omit)  ## predicciones en el test set expresadas como probabilidad
 
 predicciones.dude.prob <- as.data.frame(attr(predicciones.dude, "probabilities"))$`1`
 
@@ -198,7 +204,7 @@ p<-plot_ly(x= ~Prevalence, y = ~Sensitivity/Specificity, z = ~PPV, type = "surfa
 
 p
 
-htmlwidgets::saveWidget(as.widget(p), "PPV.html") ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
+htmlwidgets::saveWidget(as.widget(p), "PPV.html") ### GUARDO EL GR?FICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
 
 
 
@@ -221,6 +227,8 @@ setwd("D:/Dropbox/R/descriptores drugbank") ### seteo la carpeta de drugbank. Si
 base.datos <- "base drugbank 24-10-16.csv" ### nombre del archivo con la base de datos
 
 df.base.datos <- as.data.frame(fread(input=base.datos, check.names = TRUE)) #leo el archivo con la base de datos
+
+df.base.datos[is.na(df.base.datos)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
 
 predicciones.base.datos <- predict(object = svmfit, newdata = df.base.datos, probability = TRUE , na.action = na.omit)  ## predicciones en el test set expresadas como probabilidad
 

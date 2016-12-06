@@ -61,7 +61,23 @@ test <- test[, -which(names(test) == names(test)[duplicated(names(test))])] ## e
 
 set.seed(125) ## seteo la semilla para que sea reproducible el random forest
 
-rf <- randomForest(clase ~., data=training ,importance=TRUE, do.trace = TRUE, ntree = cant.arboles , proximity = TRUE)## lo que hacemos aca es random forest
+
+
+
+## lo que hacemos aca es random forest
+rf <- randomForest(clase ~.,  ## aca pongo la formula para decir cual es mi variable y y cual es mi x. en este caso la y = clase y x = al resto de las columnas
+                   
+                   data=training , ## explicito de donde saco los datos
+                   
+                   importance=TRUE, ## le digo que me calcule la importancia de las variables
+                   
+                   do.trace = TRUE, ### con esto le digo que me vaya diciendo como va la corrida
+                   
+                   ntree = cant.arboles , ## le digo el numero de arboles a armar
+                   
+                   proximity = TRUE) ## con esto le digo que me calcule la proximidad. La proximidad es la cantidad de veces que caen en la misma hoja 2 compuestos
+
+
 
 plot(rf, main = "Gráfico OOB error Random Forest") ## hago que grafique el error versus el numero de arboles en el training set
 
@@ -81,7 +97,25 @@ MDSplot(rf = rf,fac = training$clase , k =3) # Plot the scaling coordinates of t
 
 cant.arboles.optimo <- 500  #### ESTO LO SACO DE LOS GRAFICOS QUE HICE ANTES DE OOB
 
-rf <- randomForest(clase ~., data=training ,importance=TRUE, do.trace = TRUE, ntree = cant.arboles.optimo , keep.forest= TRUE , proximity = TRUE)## vuelvo a correr el random forest pero esta vez con el numero optimo de arboles
+
+
+## vuelvo a correr el random forest pero esta vez con el numero optimo de arboles
+
+rf <- randomForest(clase ~., ## aca pongo la formula para decir cual es mi variable y y cual es mi x. en este caso la y = clase y x = al resto de las columnas
+                   
+                   data=training , ## explicito de donde saco los datos
+                   
+                   importance=TRUE, ## le digo que me calcule la importancia de las variables
+                   
+                   do.trace = TRUE, ### con esto le digo que me vaya diciendo como va la corrida
+                   
+                   ntree = cant.arboles.optimo , ## le digo el numero de arboles a armar
+                   
+                   keep.forest= TRUE , ## le digo que guarde el bosque para cuando uso la funcion predict tambien pueda calcular la proximidad
+                   
+                   proximity = TRUE) ## con esto le digo que me calcule la proximidad. La proximidad es la cantidad de veces que caen en la misma hoja 2 compuestos
+
+
 
 plot(rf, main = "Gráfico OOB error Random Forest") ## hago que grafique el error versus el numero de arboles en el training set
 
@@ -122,7 +156,7 @@ resultado.rf
 
 rf <- resultado.rf[[2]] ### es la funcion obtenida de Random Forest
 
-test <- "Ddudes1miristoil.csv"  ### nombre del test set
+test <-"Ddudesmiristoiltodos.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
@@ -167,7 +201,7 @@ plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="
 
 
 
-dude <- "Ddudes2miristoil.csv"
+dude <- "Ddudesmiristoiltodos.csv"
 
 dude <- as.data.frame(fread(input = dude, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 

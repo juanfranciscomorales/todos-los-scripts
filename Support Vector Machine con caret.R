@@ -42,6 +42,7 @@ clase <- training$clase ## guardo los valores de clase para despues
 
 test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
+test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
 
 
 ## seteo para la cross validation
@@ -89,13 +90,13 @@ plot(svmfit) ## grafico los resultados del cross validation
 
 
 
-predicciones.train <- predict(object = svmfit, newdata = training, type ="prob" , na.action = na.pass) ## predicciones en el training set expresadas como probabilidad
+predicciones.train <- predict(object = svmfit, newdata = training, type ="prob") ## predicciones en el training set expresadas como probabilidad
 
 names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 auc.training <- auc(roc(predictor = predicciones.train$Activo,response = training$clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
 
-predicciones.test <- predict(object = svmfit, newdata = test, type = "prob" , na.action = na.pass) ### predigo en el test set
+predicciones.test <- predict(object = svmfit, newdata = test, type = "prob") ### predigo en el test set
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -131,7 +132,9 @@ test <- "test set curado 2.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-predicciones.test <- predict(object = svmfit, newdata = test, type = "prob" , na.action = na.pass) ### predigo en el test set
+test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
+
+predicciones.test <- predict(object = svmfit, newdata = test, type = "prob") ### predigo en el test set
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -163,7 +166,9 @@ dude <- "test set curado 2.csv"
 
 dude <- as.data.frame(fread(input = dude, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
-predicciones.dude <- predict(object = svmfit, newdata = dude, type = "prob" , na.action = na.pass) ### predigo en el test set
+dude[is.na(dude)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
+
+predicciones.dude <- predict(object = svmfit, newdata = dude, type = "prob") ### predigo en el test set
 
 names(predicciones.dude) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -263,7 +268,9 @@ base.datos <- "base drugbank 24-10-16.csv" ### nombre del archivo con la base de
 
 df.base.datos <- as.data.frame(fread(input=base.datos, check.names = TRUE)) #leo el archivo con la base de datos
 
-predicciones.base.datos <- predict(object = svmfit, newdata = df.base.datos, type = "prob" , na.action = na.pass) ### predigo en el test set
+df.base.datos[is.na(df.base.datos)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
+
+predicciones.base.datos <- predict(object = svmfit, newdata = df.base.datos, type = "prob" ) ### predigo en el test set
 
 colnames(predicciones.base.datos) <- c("Prob. Activo" , "Prob. Inactivo")
 

@@ -35,6 +35,7 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 
 test$clase <- as.factor(test$clase) # hago que la clase sea factor 
 
+test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
 
 
 
@@ -44,9 +45,9 @@ ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar e
                      
                      number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
                      
-                     repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                     repeats = 5  # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
 
-                   # classProbs=TRUE, # le digo que me devuelva la probabilidad para cada clase 
+                   # , classProbs=TRUE, # le digo que me devuelva la probabilidad para cada clase 
                      
                   # summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
                      
@@ -87,13 +88,13 @@ plot(knnFit)
 
 library(pROC)
 
-predicciones.train <- predict(knnFit, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
+predicciones.train <- predict(knnFit, newdata = training , type = "prob") ## hago la prediccion en el training set obteniendo los resultados como probabilidad
 
 names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 auc.training <- auc(roc(predictor = predicciones.train$Activo,response = clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
 
-predicciones.test <- predict(knnFit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+predicciones.test <- predict(knnFit, newdata = test, type="prob")  ## predicciones en el test set expresadas como probabilidad
 
 
 
