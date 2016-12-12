@@ -133,7 +133,7 @@ p<-plot_ly(x= ~Prevalence, y = ~Sensitivity/Specificity, z = ~PPV, type = "surfa
 
 p
 
-htmlwidgets::saveWidget(as.widget(p), file =  paste(clase," IAC_LogP", ".html", sep="")) ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
+htmlwidgets::saveWidget(as.widget(p), file = "PPV.html") ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
 
 
 

@@ -38,7 +38,7 @@ sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las column
 
 training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
-training$clase <- as.factor(training$clase) ## hago que la columna clase sea como factor para poder hacer que el boosting sea clasificatorio
+training$clase <- as.factor(make.names(training$clase)) ## hago que la columna clase sea como factor y con nombres validos para poder hacer que el boosting sea clasificatorio
 
 clase <- training$clase ## guardo los valores de clase para despues
 
@@ -52,8 +52,13 @@ ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar e
                      
                      number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
                      
-                     repeats = 3 ) # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
-                     
+                     repeats = 3 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+
+                     classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
+
+                     summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
+
+)
 
 ## con esto seteo la busqueda para seleccionar los parametros optimos
 
@@ -61,7 +66,7 @@ gbmGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que
         
                         interaction.depth = 1:10, ## este parametro es para ver la profundidad del arbol optima
                         
-                        n.trees = (1:10)*100, ## este parametro es para ver el numero optimo de arboles
+                        n.trees = 1:1500, ## este parametro es para ver el numero optimo de arboles
                         
                         shrinkage = 0.01 , ## es un valor de restriccion. Tengo que buscar el valor optimo. Mientras mas bajo mejor pero el costo computacional es mayor
                         
