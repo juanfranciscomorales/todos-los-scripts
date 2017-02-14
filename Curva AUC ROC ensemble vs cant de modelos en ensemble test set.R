@@ -10,7 +10,7 @@ cant.modelos <- 1:100 ## le doy la secuencia de la cantidad de modelos a combina
 
 for( i in cant.modelos){
         
-        resultado <- clasificaciones.test.set.ensemble.promedio.lm(test.set = "test set.csv",cant.modelos = i, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)
+        resultado <- clasificaciones.test.set.ensemble.promedio.lm(test.set = "Dudepoliaminas2016.csv",cant.modelos = i, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)
         
         vector.AUC.ensembles[i] <-resultado[[2]]
 
@@ -29,7 +29,7 @@ plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="mar
         
         error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
         
-        layout(title = "Ensemble Promedio" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
+        layout(title = "Ensemble Promedio - Test set o Dude" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
 
 
 ####### ENSEMBLE MINIMO #########
@@ -44,7 +44,7 @@ cant.modelos <- 1:100 ## le doy la secuencia de la cantidad de modelos a combina
 
 for( i in cant.modelos){
         
-        resultado <- clasificaciones.test.set.ensemble.minimo.lm(test.set = "test set.csv",cant.modelos = i, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)
+        resultado <- clasificaciones.test.set.ensemble.minimo.lm(test.set = "Dudepoliaminas2016.csv",cant.modelos = i, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)
         
         vector.AUC.ensembles[i] <-resultado[[2]]
         
@@ -64,7 +64,7 @@ plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles, mode="markers",
         
         error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2,array = high_conf_int2)) %>%
         
-        layout(title = "Ensemble Minimo" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
+        layout(title = "Ensemble Minimo - Test set o Dude" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
 
 
 ######### ENSEMBLE VOTO ##########
@@ -79,7 +79,7 @@ cant.modelos <- 1:100 ## le doy la secuencia de la cantidad de modelos a combina
 
 for( i in cant.modelos){
         
-        resultado <- clasificaciones.test.set.ensemble.voto.lm(test.set = "test set.csv",cant.modelos = i, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)
+        resultado <- clasificaciones.test.set.ensemble.voto.lm(test.set = "Dudepoliaminas2016.csv",cant.modelos = i, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)
         
         vector.AUC.ensembles[i] <-resultado[[2]]
         
@@ -99,7 +99,7 @@ plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles, mode="markers",
         
         error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2,array = high_conf_int2)) %>%
         
-        layout(title = "Ensemble Voto" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
+        layout(title = "Ensemble Voto - Test set o Dude" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
 
 
 ##### ENSEMBLE RANKING #######
@@ -114,7 +114,7 @@ cant.modelos <- 1:100 ## le doy la secuencia de la cantidad de modelos a combina
 
 for( i in cant.modelos){
         
-        resultado <- clasificaciones.test.set.ensemble.ranking.lm(test.set = "test set.csv",cant.modelos = i, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)
+        resultado <- clasificaciones.test.set.ensemble.ranking.lm(test.set = "Dudepoliaminas2016.csv",cant.modelos = i, x = tabla.AUC.ordenadas.test.set, remover.NA = FALSE)
         
         vector.AUC.ensembles[i] <-resultado[[2]]
         
@@ -134,5 +134,5 @@ plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles, mode="markers",
         
         error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2,array = high_conf_int2)) %>%
         
-        layout(title = "Ensemble Ranking" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
+        layout(title = "Ensemble Ranking - Test set o Dude" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
 

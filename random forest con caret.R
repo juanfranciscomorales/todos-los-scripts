@@ -52,34 +52,34 @@ if (sum(duplicated(names(test))) > 0 ) { ## hago un if para eliminar las columna
 
 ## seteo para la cross validation
 
+set.seed(1)
 
-
-ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+ctrl <- trainControl(method="oob",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
                      
-                     number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
+                     verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
+                    
+                     classProbs=TRUE  # le digo que me devuelva la probabilidad para cada clase 
                      
-                     repeats = 3  # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
-                     
-                  #  , classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
-                     
-                   #  summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
+                     # , summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
                      
 )
+
+
 
 
 ## con esto seteo la busqueda para seleccionar los parametros optimos
 
 
 
-sqtmtry <- round(sqrt(ncol(training) - 1)) ## raiz cuadrada como opcion de mtry
+sqtmtry <- floor(sqrt(ncol(training) - 1)) ## raiz cuadrada como opcion de mtry
 
-rfGrid <- expand.grid(mtry = c(round(sqtmtry / 2), sqtmtry, 2 * sqtmtry)) ## planteo cuales son los mtry que voy a probar
+rfGrid <- expand.grid(mtry = c(sqtmtry/2 , sqtmtry , sqtmtry*2) ## planteo cuales son los mtry que voy a probar
 
-cant.arboles <- 1000
+cant.arboles <- 3000
 
 
 
-### Entreno el modelo por gbm y optimizo los valores
+### Entreno el modelo por rf y optimizo los valores
 
 set.seed(1)
 
@@ -97,13 +97,12 @@ rffit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer kn
                
                ntree = cant.arboles , ## le digo el numero de arboles a armar 
                
-               do.trace = TRUE, ### con esto le digo que me vaya diciendo como va la corrida
-
                proximity = TRUE , ## con esto le digo que me calcule la proximidad. La proximidad es la cantidad de veces que caen en la misma hoja 2 compuestos
                
                tuneGrid = rfGrid ) ## con esto le digo que me pruebe los mtry planteados
                
-               proc.time() - ptm
+               
+proc.time() - ptm
 
 rffit
 

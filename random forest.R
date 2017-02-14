@@ -11,9 +11,9 @@
 
 
 
-training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set
+training.set  <- "Trainingpoliaminas2016.csv"  ### nombre del archivo con el training set
 
-test.set <- "Dtestmiristoil.csv"  ### nombre del archivo con el test set
+test.set <- "Testpoliaminas2016.csv"  ### nombre del archivo con el test set
 
 cant.arboles <- 3000  ### cant de arboles que pongo en el RF
 
@@ -65,6 +65,7 @@ set.seed(125) ## seteo la semilla para que sea reproducible el random forest
 
 
 ## lo que hacemos aca es random forest
+
 rf <- randomForest(clase ~.,  ## aca pongo la formula para decir cual es mi variable y y cual es mi x. en este caso la y = clase y x = al resto de las columnas
                    
                    data=training , ## explicito de donde saco los datos
@@ -95,7 +96,7 @@ MDSplot(rf = rf,fac = training$clase , k =3) # Plot the scaling coordinates of t
 ############################
 
 
-cant.arboles.optimo <- 500  #### ESTO LO SACO DE LOS GRAFICOS QUE HICE ANTES DE OOB
+cant.arboles.optimo <- 2500  #### ESTO LO SACO DE LOS GRAFICOS QUE HICE ANTES DE OOB
 
 
 
@@ -156,7 +157,7 @@ resultado.rf
 
 rf <- resultado.rf[[2]] ### es la funcion obtenida de Random Forest
 
-test <-"Ddudesmiristoiltodos.csv"  ### nombre del test set
+test <-"Dudepoliaminas2016.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
@@ -201,7 +202,7 @@ plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="
 
 
 
-dude <- "Ddudesmiristoiltodos.csv"
+dude <- "Dudepoliaminas2016.csv"
 
 dude <- as.data.frame(fread(input = dude, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
@@ -217,7 +218,7 @@ if (sum(duplicated(names(dude)))) { ## hago un if para eliminar las columnas que
 
 predicciones.dude <- predict(object = rf, newdata = dude, type="prob")  ## predicciones en el dude set expresadas como probabilidad
 
-curva.ROC.dude <- roc(response = dude$clase, predictor = predicciones.dude[,2], direction = "<") ## calculo de la curva ROC para los resultados de la base dude
+curva.ROC.dude <- roc(response = dude$clase, predictor = predicciones.dude[,2], direction = "<" , plot = TRUE) ## calculo de la curva ROC para los resultados de la base dude
 
 auc(curva.ROC.dude) ### imprimo el AUC de la curva ROC para ver si coincide con los resultados anteriores
 
@@ -289,7 +290,7 @@ p<-plot_ly(x= ~Prevalence, y = ~Sensitivity/Specificity, z = ~PPV, type = "surfa
 
 p
 
-htmlwidgets::saveWidget(as.widget(p), "PPV.html") ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
+htmlwidgets::saveWidget(as.widget(p), "PPV - Random Forest.html") ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
 
 
 

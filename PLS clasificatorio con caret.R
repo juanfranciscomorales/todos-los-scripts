@@ -37,7 +37,7 @@ sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las column
 
 training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
-training$clase <- as.factor(training$clase) ## guardo la columna clase en un elemento
+training$clase <- as.factor(make.names(training$clase)) ## hago que la columna clase sea como factor y con nombres validos para poder hacer que el boosting sea clasificatorio
 
 clase <- training$clase ## guardo los valores de clase para despues
 
@@ -47,24 +47,46 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 
 ## seteo para la cross validation
 
-ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+set.seed(1)
+
+ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation adaptativo. Esto hace que mi corrida sea mas corta porque va eliminando a medida que ve cuales dan mal
+                     
+                     verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                      
                      number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
                      
-                     repeats = 5 ) # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                     repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                     
+                     classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
+                     
+                     adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
+                                     
+                                     alpha = 0.05, ## is a confidence level that is used to remove parameter settings. To date, this value has not shown much of an effect.
+                                     
+                                     method = "gls", ## is either "gls" for a linear model or "BT" for a Bradley-Terry model. The latter may be more useful when you expect the model to do very well (e.g. an area under the ROC curve near 1) or when there are a large number of tuning parameter settings.
+                                     
+                                     complete = TRUE)  ##is a logical value that specifies whether train should generate the full resampling set if it finds an optimal solution before the end of resampling. If you want to know the optimal parameter settings and don't care much for the estimated performance value, a value of FALSE would be appropriate here.
+                     
+                     # , summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
+                     
+)
 
 
 
 ## con esto seteo la busqueda para seleccionar los parametros optimos
+
+
 
 plsGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
         
                 ncomp = 1:100 ) ### este parametro es para ver la cantidad de componentes optimo
 
 
+
 ### Entreno el modelo por svmRadial y optimizo los valores
 
-set.seed(2)
+
+
 
 plsfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
                 

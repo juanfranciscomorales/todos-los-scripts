@@ -41,11 +41,13 @@ df <- clasificaciones.test.set.ensemble.voto.lm2(test.set  = "Descriptores DUDE 
 
 df$clase[df$clase == -1] <- 0 ## esto es por si llega a haber en el archivo original haber puesto a los inactivos como -1, pasarlos a 0
 
-curva.roc.dude <- roc(predictor = df$promedio.voto ,response = df$clase, direction="<") ## calculo la curva ROC con los datos del score  voto promedio y la clase verdadera
+curva.roc.dude <- roc(predictor = df$promedio.voto ,response = df$clase, direction="<" , ci = TRUE , auc = TRUE , conf.level=0.95 , ci.method = "delong", boot.n = 2000, boot.stratified = TRUE, reuse.auc=TRUE , plot =  TRUE) ## calculo la curva ROC con los datos del score minimo y la clase verdadera
 
-AUC.dude <- auc(curva.roc.dude) ## calculo el AUC ROC
+AUC.dude <- curva.roc.dude$auc[[1]] ## calculo el AUC ROC
 
-predicciones <- ifelse( df$promedio.voto > resultados.ensemble.voto[[4]], yes = 1,no = 0) ## predicciones aplicando el ensemble de operador voto y usando el punto de corte que obtuve con el training
+int.conf.95.AUC.ROC <- curva.roc.dude$ci ## extraigo el intervalo de confianza del AUC ROC
+
+predicciones <- ifelse( df$promedio.voto > resultados.ensemble.voto[[6]], yes = 1,no = 0) ## predicciones aplicando el ensemble de operador voto y usando el punto de corte que obtuve con el training
 
 clase <-df$clase #extraigo los valores de la columna clase
 
@@ -55,7 +57,7 @@ bien.clasificados <- predicciones == clase ## veo si el ensemble me clasifico bi
 
 porcentaje.bien.clasificados <- 100*sum(bien.clasificados, na.rm = TRUE)/length(bien.clasificados) #porcentaje de buenas clasificaciones en el test set
 
-resultado.final <- list("AUC de la curva ROC", AUC.dude, "punto de corte", resultados.ensemble.voto[[4]], "% bien clasificados test set", porcentaje.bien.clasificados,"Classification Matrix", tabla.bien.mal.clasificados) ## lista con todos los resultados que quiero que aparezcan cuando aplico la funcion
+resultado.final <- list("AUC de la curva ROC", AUC.dude,"Int Confianza AUC ROC" , int.conf.95.AUC.ROC , "punto de corte", resultados.ensemble.voto[[6]], "% bien clasificados test set", porcentaje.bien.clasificados,"Classification Matrix", tabla.bien.mal.clasificados) ## lista con todos los resultados que quiero que aparezcan cuando aplico la funcion
 
 resultado.final ## pongo el resultado final. Sirve para verificar que esta todo bien
 

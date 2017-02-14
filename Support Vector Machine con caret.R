@@ -7,6 +7,7 @@
 ###########################################
 
 
+
 is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
 
 if (is.installed("data.table") == FALSE) {install.packages("data.table")} #si openxlsx no est? instalado hago que me lo instale automaticamente
@@ -22,9 +23,9 @@ library(data.table)
 library(pROC)
 
 
-training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set
+training.set  <- "Trainingpoliaminas2016.csv"  ### nombre del archivo con el training set
 
-test.set <- "Dtestmiristoil.csv"  ### nombre del archivo con el test set
+test.set <- "Testpoliaminas2016.csv"  ### nombre del archivo con el test set
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
@@ -36,7 +37,7 @@ sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las column
 
 training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
-training$clase <- as.factor(training$clase) ## guardo la columna clase en un elemento
+training$clase <- as.factor(make.names(training$clase)) ## hago que la columna clase sea como factor y con nombres validos para poder hacer que el SVM sea clasificatorio
 
 clase <- training$clase ## guardo los valores de clase para despues
 
@@ -45,15 +46,35 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
 
 
+
+set.seed(1)  
+
+
 ## seteo para la cross validation
 
-ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                     
+                     verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                      
                      number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
                      
-                     repeats = 5 ) # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                     repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                     
+                     classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
+                     
+                     adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
+                                     
+                                     alpha = 0.05, ## is a confidence level that is used to remove parameter settings. To date, this value has not shown much of an effect.
+                                     
+                                     method = "gls", ## is either "gls" for a linear model or "BT" for a Bradley-Terry model. The latter may be more useful when you expect the model to do very well (e.g. an area under the ROC curve near 1) or when there are a large number of tuning parameter settings.
+                                     
+                                     complete = TRUE)  ##is a logical value that specifies whether train should generate the full resampling set if it finds an optimal solution before the end of resampling. If you want to know the optimal parameter settings and don't care much for the estimated performance value, a value of FALSE would be appropriate here.
+                     
+                     # , summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
+                     
+)
 
-
+                
 
 ## con esto seteo la busqueda para seleccionar los parametros optimos
 
@@ -66,8 +87,9 @@ svmGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que
 
 
 ### Entreno el modelo por svmRadial y optimizo los valores
+
+ptm <- proc.time() 
  
-set.seed(1)   
 svmfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
                 
                 data = training, ## le digo cuales son mis datos para armar el modelo
@@ -82,6 +104,7 @@ svmfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer k
                 
                 prob.model = TRUE) ## le digo con esto que tambien calcule la probabilidad de ser de una clase u otra
 
+proc.time() - ptm
 
 svmfit ## imprimo el resultado
 
@@ -126,9 +149,8 @@ resultado.svm
 
 
 
-svmfit <- resultado.svm[[2]] ### es la funcion obtenida de Random Forest
 
-test <- "test set curado 2.csv"  ### nombre del test set
+test <- "Testpoliaminas2016.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 

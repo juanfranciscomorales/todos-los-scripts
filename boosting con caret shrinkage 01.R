@@ -17,10 +17,11 @@ if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no 
 
 if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
+if (is.installed("compiler") == FALSE) {install.packages("compiler")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
 library(caret) ## cargo el paquete caret que tiene varias funciones que voy a usar
 
 library(data.table) ## cargo este paquete para leer rapido los archivos
-
 
 
 
@@ -46,61 +47,219 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 
 
 
+
+
+
+
+
+
+###############################################################################
+
+
+
+#       BUSQUEDA DE PARAMETROS OPTIMOS cuando 
+
+
+#               shrinkage = 0.01
+
+
+
+##############################################################################
+
+
+
+set.seed(1)
+
+
+
 ## seteo para la cross validation
 
-ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+ctrl.01 <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                     
+                     verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                      
                      number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
                      
-                     repeats = 3 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
-
+                     repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                     
                      classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
-
-                     summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
-
+                     
+                     adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
+                                     
+                                     alpha = 0.05, ## is a confidence level that is used to remove parameter settings. To date, this value has not shown much of an effect.
+                                     
+                                     method = "gls", ## is either "gls" for a linear model or "BT" for a Bradley-Terry model. The latter may be more useful when you expect the model to do very well (e.g. an area under the ROC curve near 1) or when there are a large number of tuning parameter settings.
+                                     
+                                     complete = TRUE)  ##is a logical value that specifies whether train should generate the full resampling set if it finds an optimal solution before the end of resampling. If you want to know the optimal parameter settings and don't care much for the estimated performance value, a value of FALSE would be appropriate here.
+                     
+                     # , summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
+                     
 )
 
-## con esto seteo la busqueda para seleccionar los parametros optimos
 
-gbmGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
+
+## con esto seteo la busqueda para seleccionar los parametros optimos con shrinkage = 0.01 
+
+gbmGrid.01 <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
         
-                        interaction.depth = 1:10, ## este parametro es para ver la profundidad del arbol optima
+                        interaction.depth = 1 , ## este parametro es para ver la profundidad del arbol optima
                         
-                        n.trees = 1:1500, ## este parametro es para ver el numero optimo de arboles
+                        n.trees = seq(from = 100 , to = 3000, by = 100), ## este parametro es para ver el numero optimo de arboles
                         
                         shrinkage = 0.01 , ## es un valor de restriccion. Tengo que buscar el valor optimo. Mientras mas bajo mejor pero el costo computacional es mayor
                         
                         n.minobsinnode = 10 ) ## el numero minimo de observaciones en cada hoja. Si es muy bajo puede terminar en overfitting
 
 
-# tardo 3 horas asi en optimizar los parametros
+
 
 ### Entreno el modelo por gbm y optimizo los valores
 
-set.seed(1)
 
 ptm <- proc.time()
 
-gbmfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
+gbmfit.01 <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
                 
                 data = training, ## le digo cuales son mis datos para armar el modelo
                 
                 method = "gbm", ## aca le digo que use knn para armar el modelo
                 
-                trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
+                trControl = ctrl.01,  ## le digo que use el elemento ctrl para optimizar el modelo
                 
-                tuneGrid = gbmGrid , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
+                tuneGrid = gbmGrid.01 , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
                 
-                distribution = "bernoulli", ## esto lo hago para que sea clasificatorio
+                distribution = "bernoulli") ## esto lo hago para que sea clasificatorio
                 
-                verbose = TRUE)  ## con esto hago que se me impriman los resultados preliminares
+               
+proc.time() - ptm
+
+
+gbmfit.01 ## imprimo el resultado
+
+plot(gbmfit.01) ## grafico los resultados del cross validation
+
+
+
+variables.importantes <- head(summary(gbmfit.01), n = 20) ## extraigo un data frame que contiene los valores de influencia y el nombre de las variables. con n decido cuantas variables mas importantes extraigo
+
+variables.importantes <- transform(variables.importantes, var = reorder(var, rel.inf)) ## este paso lo hago asi en el siguiente grafico me pone ordenadas por la influencia relativa y no por orden alfabetico
+
+ggplot(data = variables.importantes , aes(x = var, y = rel.inf)) + geom_bar(stat="identity", fill="steelblue")  + coord_flip() + theme_minimal() + labs(title = "20 most influence variables in Boosting", y = "Relative Influence" , x = "Variable") + theme(plot.title = element_text(hjust = 0.5))  ## con esto grafico las 20 variables que mas influyen en el armado del modelo
+
+library(pROC) ## abro el paquete pROC para hacer las curvas ROC
+
+predicciones.train <- predict(gbmfit.01, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
+
+names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
+
+auc.training <- auc(roc(predictor = predicciones.train$Activo,response = clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
+
+predicciones.test <- predict(gbmfit.01, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+
+names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
+
+auc.test <- auc(roc(predictor= predicciones.test$Activo, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
+
+resultado.gbm.01 <- list("Modelo armado por Boosting", gbmfit.01  , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+
+resultado.gbm.01
+
+
+
+
+
+
+#####################################################################################
+###################################################################################
+###################################################################################
+
+
+
+
+#  VIENDO LOS RESULTADOS ANTERIORES DECIDO CUALES SON LOS ULTIMOS PARAMETROS A 
+
+# OPTIMIZAR. LA BUSQUEDA FINA HAGO AHORA
+
+
+set.seed(1)
+
+
+## seteo para la cross validation
+
+ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                         
+                         verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
+                         
+                         number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
+                         
+                         repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                         
+                         classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
+                         
+                         adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
+                                         
+                                         alpha = 0.05, ## is a confidence level that is used to remove parameter settings. To date, this value has not shown much of an effect.
+                                         
+                                         method = "gls", ## is either "gls" for a linear model or "BT" for a Bradley-Terry model. The latter may be more useful when you expect the model to do very well (e.g. an area under the ROC curve near 1) or when there are a large number of tuning parameter settings.
+                                         
+                                         complete = TRUE)  ##is a logical value that specifies whether train should generate the full resampling set if it finds an optimal solution before the end of resampling. If you want to know the optimal parameter settings and don't care much for the estimated performance value, a value of FALSE would be appropriate here.
+                         
+                         # , summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
+                         
+)
+
+
+
+## con esto seteo la busqueda para seleccionar los parametros optimos
+
+
+## COMPLETO SEGUN LAS CONCLUSIONES DE CORRIDAS ANTERIORES PARA HACER LA 
+## BUSQUEDA FINA DE LA OPTIMIZACION
+
+
+
+gbmGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
+        
+        interaction.depth = 1 , ## este parametro es para ver la profundidad del arbol optima
+        
+        n.trees = seq(from = gbmfit.01$finalModel$n.trees -99 , to = gbmfit.01$finalModel$n.trees + 99 , by = 1), ## este parametro es para ver el numero optimo de arboles
+        
+        shrinkage = 0.01 , ## es un valor de restriccion. Tengo que buscar el valor optimo. Mientras mas bajo mejor pero el costo computacional es mayor
+        
+        n.minobsinnode = 10 ) ## el numero minimo de observaciones en cada hoja. Si es muy bajo puede terminar en overfitting
+
+
+
+
+### Entreno el modelo por gbm y optimizo los valores
+
+
+ptm <- proc.time()
+
+gbmfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
+                    
+                    data = training, ## le digo cuales son mis datos para armar el modelo
+                    
+                    method = "gbm", ## aca le digo que use knn para armar el modelo
+                    
+                    trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
+                    
+                    tuneGrid = gbmGrid , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
+                    
+                    distribution = "bernoulli") ## esto lo hago para que sea clasificatorio
+
 
 proc.time() - ptm
+
+
 
 
 gbmfit ## imprimo el resultado
 
 plot(gbmfit) ## grafico los resultados del cross validation
+
+
+
 
 variables.importantes <- head(summary(gbmfit), n = 20) ## extraigo un data frame que contiene los valores de influencia y el nombre de las variables. con n decido cuantas variables mas importantes extraigo
 
@@ -131,6 +290,11 @@ resultado.gbm
 
 
 
+
+
+
+
+
 ######### GRAFICOS PARA ANALIZAR LOS RESULTADOS ############
 
 
@@ -138,7 +302,7 @@ resultado.gbm
 
 
 
-test <- "Ddudes2miristoil.csv"  ### nombre del test set
+test <- "Ddudesmiristoiltodos.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
@@ -174,7 +338,7 @@ plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="
 
 
 
-dude.set <- "Ddudes2miristoil.csv"
+dude.set <- "Ddudesmiristoiltodos.csv"
 
 dude <- as.data.frame(fread(input = dude.set, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
@@ -286,7 +450,7 @@ predicciones.base.datos$NOMBRE <- df.base.datos$NAME ## agrego una columna que s
 
 library(openxlsx)
 
-write.xlsx(x= predicciones.base.datos, file= "Screening por Boosting con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
+write.xlsx(x= predicciones.base.datos, file= "Screening por Boosting- GBM con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
 
 
 

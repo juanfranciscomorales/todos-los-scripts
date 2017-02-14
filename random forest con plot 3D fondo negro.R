@@ -154,7 +154,7 @@ resultado.rf
 
 
 
-rf <- resultado.rf[[2]] ### es la funcion obtenida de Random Forest
+
 
 test <-"Ddudesmiristoiltodos.csv"  ### nombre del test set
 
@@ -253,43 +253,92 @@ Prevalence <- as.list(Prevalence)
 
 library(plotly)
 
-f1 <- list( size = 18) ## esto es si quiero cambiar algo de la fuente del titulo de los ejes
+f1 <- list( size = 12) ## esto es si quiero cambiar algo de la fuente del titulo de los ejes
 
-f2 <- list( size = 14) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
+f2 <- list( size = 12) ## esto es si quiero cambiar algo de la fuente de las marcas de los ejes
 
 axis.x <- list(title="Ya", ## opciones para el eje x
                titlefont = f1, ## para cambiar la fuente del titulo
                tickfont = f2, ## para cambiar la fuente de la marca de los ejes
                showgrid = T, ## si se muestra la cuadricula
-               gridwidth = 10, ## el ancho de la linea de la cuadricula
-               linewidth = 10) ## el ancho de la linea del eje
+               gridwidth = 3, ## el ancho de la linea de la cuadricula
+               linewidth = 3, ## el ancho de la linea del eje
+                color="white", ## color del titulo del eje
+               gridcolor ="white", ### color de la linea de la cuadricula
+               spikecolor = "white", ## color de la linea que se proyecta cuando estoy sobre el grafico
+               spikesides = TRUE,
+                zerolinecolor ="white") ## color de la linea del eje zero
 
 axis.y <- list(title="Sensitivity/Specificity", ## opciones para el eje y
                titlefont = f1, ## para cambiar la fuente del titulo
                tickfont = f2, ## para cambiar la fuente de la marca de los ejes
                showgrid = T , ## si se muestra la cuadricula
-               gridwidth = 10,  ## el ancho de la linea de la cuadricula
-               linewidth = 10) ## el ancho de la linea del eje
+               gridwidth = 3,  ## el ancho de la linea de la cuadricula
+               linewidth = 3, ## el ancho de la linea del eje
+                color ="white", ## color del titulo del eje
+               gridcolor="white",### color de la linea de la cuadricula
+               spikecolor = "white",## color de la linea que se proyecta cuando estoy sobre el grafico
+               spikesides =TRUE , 
+               zerolinecolor ="white") ## color de la linea del eje zero
 
 axis.z <- list(title="PPV",  ## opciones para el eje z
                titlefont = f1, ## para cambiar la fuente del titulo
                tickfont = f2, ## para cambiar la fuente de la marca de los ejes
                showgrid = T , ## si se muestra la cuadricula
-               gridwidth = 10,  ## el ancho de la linea de la cuadricula
-               linewidth = 10) ## el ancho de la linea del eje
+               gridwidth = 3,  ## el ancho de la linea de la cuadricula
+               linewidth = 3, ## el ancho de la linea del eje
+                color="white", ## color del titulo del eje
+               gridcolor="white",### color de la linea de la cuadricula
+               spikecolor = "white", ## color de la linea que se proyecta cuando estoy sobre el grafico
+              spikesides = TRUE ,
+                zerolinecolor ="white") ## color de la linea del eje zero
 
 scene <- list(              ## resumo las info de los ejes en esta variable llamada "scene"
         xaxis = axis.x,
         yaxis = axis.y,
         zaxis = axis.z)
 
+
+
+m <- list(                 ### esto es para ajustar los margenes
+        l = 0,    ## margen left
+        r = 0,    ## margen right
+        b = 0,   ## margen bottom
+        t = 60,   ## margen top
+        pad = 0    ## margen del grafico a los ejes 
+)
+
+lighting <- list(  ### con esto seteo como son las sombras y las luces
+        fresnel = 0.2,
+        specular = 0.09,
+        ambient = 0.88,
+        diffuse = 0.99,
+        roughness = 0.49
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
 ####IMPORTANTE##### SABER QUE LAS COLUMNAS DE LA MATRIX EN Z SE CORRESPONDEN A X Y LAS FILAS DE Z SE CORRESPONDEN A Y 
 
-p<-plot_ly(x= ~Prevalence, y = ~Sensitivity/Specificity, z = ~PPV, type = "surface") %>% layout( paper_bgcolor="black" , plot_bgcolor= "transparent", title ="3D Surface PPV" , scene = scene)  # hago el grafico de superficie 3D, aca especifico el nombre del grafico y luego en scene pongo la variable scene que tiene los formatos deseados
+p <- plot_ly(x= ~Prevalence, y = ~Sensitivity/Specificity, z = ~PPV, type = "surface", colors = "Spectral" ) %>% 
+        
+        colorbar(titlefont = list(color ="white"), tickfont = list(color = "rgb(255,255,255)") , lighting = lighting , contours = list(x = list(highlight = TRUE),y = list(highlight = TRUE),z = list(highlight = TRUE))) %>% 
+        
+        layout( paper_bgcolor="black" , plot_bgcolor= "black", title ="3D Surface PPV" , titlefont =list(color="white") , scene = scene , margin = m)  # hago el grafico de superficie 3D, aca especifico el nombre del grafico y luego en scene pongo la variable scene que tiene los formatos deseados
 
 p
 
-htmlwidgets::saveWidget(as.widget(p), "PPV.html") ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
+htmlwidgets::saveWidget(p, "PPV.html" , background = "black") ### GUARDO EL GRÁFICO COMO HTML Y LUEGO LO PUEDO VER EN CUALQUIER NAVEGADOR WEB
 
 
 
