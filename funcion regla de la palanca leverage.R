@@ -123,4 +123,4 @@ print("se guardo los resultados con nombre: tabla resultados leverage.xlsx")
 
 ####### ACA TERMINA LA FUNCION, LA CARGO Y HAGO CORRER LO DE ABAJO
 
-regla.palanca ( training.set ="Training set sara.csv", base.datos = "base drugbank.csv", tabla.scores  = "scores drugbank ensemble minimo 25 mejores segun dude.xlsx" , cant.modelos = 25, x = tabla.AUC.ordenadas.test.set,  cant.compuestos = 500 )
+regla.palanca ( training.set ="Training set sara.csv", base.datos = "Sweatlead-Drugbank 14-12-16.csv", tabla.scores  = "Screening por Ensemble Minimo.xlsx" , cant.modelos = 25, x = tabla.AUC.ordenadas.test.set,  cant.compuestos = 500 )

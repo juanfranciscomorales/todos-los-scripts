@@ -6,6 +6,8 @@ low_conf_int <- vector() ## creo vector vacio donde voy a poner los valores bajo
 
 high_conf_int <- vector() ## creo vector vacio donde voy a poner los valores altos del intervalo de confianza de la AUC ROC
 
+p.valores <- vector() ## creo un vector vacio donde voy a poner los valores de p-valor para las comparaciones de las AUC entre el ensemble y el mejor modelo individual
+
 cant.modelos <- 1:100 ## le doy la secuencia de la cantidad de modelos a combinar
 
 for( i in cant.modelos){
@@ -18,6 +20,7 @@ for( i in cant.modelos){
         
         high_conf_int[i] <- resultado[[4]][[3]]
         
+        p.valores[i] <- resultado[[6]]$p.value
         }  
 
 
@@ -27,12 +30,21 @@ high_conf_int2 <- high_conf_int - vector.AUC.ensembles ## creo un vector con la 
 
 library(plotly)
 
-plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="markers", 
+grafica.promedio <- plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="markers", 
         
-        error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
+                        error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
         
-        layout(title = "Ensemble Promedio - Training" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
+                        layout(xaxis = list(title="Number of individual models included in the ensemble", range = c(0,101) , dtick =5), yaxis=list(title="AUROC" , range = c(0.5 , 1.01) , dtick = 0.05 ))
 
+grafica.promedio
+
+htmlwidgets::saveWidget(as.widget(grafica.promedio), file = "AUROC vs cant modelos Ensemble Promedio - Training.html")
+
+tabla.p.valores.AUC <- data.frame(cant.modelos, p.valores) ## genero una tabla donde guardo los p-valores de las comparaciones de las AUC ROC
+
+library(openxlsx)
+
+write.xlsx(x= tabla.p.valores.AUC, file= "tabla p-valores comparaciones AUC ROC ensemble promedio vs AUC ROC mejor individual - training.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar la tabla de los puntos de corte de la curva ROC con los valores de sensibilidad y especificidad despues del filtrado
 
 ####### ENSEMBLE MINIMO #########
 
@@ -41,6 +53,8 @@ vector.AUC.ensembles <- vector()  ## creo vector vacio donde voy a poner las AUC
 low_conf_int <- vector() ## creo vector vacio donde voy a poner los valores bajos del intervalo de confianza de la AUC ROC
 
 high_conf_int <- vector() ## creo vector vacio donde voy a poner los valores altos del intervalo de confianza de la AUC ROC
+
+p.valores <- vector() ## creo un vector vacio donde voy a poner los valores de p-valor para las comparaciones de las AUC entre el ensemble y el mejor modelo individual
 
 cant.modelos <- 1:100 ## le doy la secuencia de la cantidad de modelos a combinar
 
@@ -54,6 +68,8 @@ for( i in cant.modelos){
         
         high_conf_int[i] <- resultado[[4]][[3]]
         
+        p.valores[i] <- resultado[[6]]$p.value
+        
 }  
 
 
@@ -63,12 +79,21 @@ high_conf_int2 <- high_conf_int - vector.AUC.ensembles ## creo un vector con la 
 
 library(plotly)
 
-plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="markers", 
+grafica.minimo <- plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="markers", 
         
-        error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
+                        error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
         
-        layout(title = "Ensemble minimo - Training" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
+                        layout( xaxis = list(title="Number of individual models included in the ensemble", range = c(0,101) , dtick =5), yaxis=list(title="AUROC" , range = c(0.5 , 1.01) , dtick = 0.05 ))
 
+grafica.minimo
+
+htmlwidgets::saveWidget(as.widget(grafica.minimo), file = "AUROC vs cant modelos Ensemble minimo - Training.html")
+
+tabla.p.valores.AUC <- data.frame(cant.modelos, p.valores) ## genero una tabla donde guardo los p-valores de las comparaciones de las AUC ROC
+
+library(openxlsx)
+
+write.xlsx(x= tabla.p.valores.AUC, file= "tabla p-valores comparaciones AUC ROC ensemble minimo vs AUC ROC mejor individual - training.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar la tabla de los puntos de corte de la curva ROC con los valores de sensibilidad y especificidad despues del filtrado
 
 ######### ENSEMBLE VOTO ##########
 
@@ -77,6 +102,8 @@ vector.AUC.ensembles <- vector()  ## creo vector vacio donde voy a poner las AUC
 low_conf_int <- vector() ## creo vector vacio donde voy a poner los valores bajos del intervalo de confianza de la AUC ROC
 
 high_conf_int <- vector() ## creo vector vacio donde voy a poner los valores altos del intervalo de confianza de la AUC ROC
+
+p.valores <- vector() ## creo un vector vacio donde voy a poner los valores de p-valor para las comparaciones de las AUC entre el ensemble y el mejor modelo individual
 
 cant.modelos <- 1:100 ## le doy la secuencia de la cantidad de modelos a combinar
 
@@ -90,6 +117,8 @@ for( i in cant.modelos){
         
         high_conf_int[i] <- resultado[[4]][[3]]
         
+        p.valores[i] <- resultado[[6]]$p.value
+        
 }  
 
 
@@ -99,11 +128,21 @@ high_conf_int2 <- high_conf_int - vector.AUC.ensembles ## creo un vector con la 
 
 library(plotly)
 
-plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="markers", 
+grafica.voto <- plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="markers", 
         
-        error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
+                        error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
         
-        layout(title = "Ensemble voto - Training" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
+                        layout( xaxis = list(title="Number of individual models included in the ensemble", range = c(0,101) , dtick =5), yaxis=list(title="AUROC" , range = c(0.5 , 1.01) , dtick = 0.05 ))
+
+grafica.voto
+
+htmlwidgets::saveWidget(as.widget(grafica.voto), file = "AUROC vs cant modelos Ensemble voto - Training.html")
+
+tabla.p.valores.AUC <- data.frame(cant.modelos, p.valores) ## genero una tabla donde guardo los p-valores de las comparaciones de las AUC ROC
+
+library(openxlsx)
+
+write.xlsx(x= tabla.p.valores.AUC, file= "tabla p-valores comparaciones AUC ROC ensemble voto vs AUC ROC mejor individual - training.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar la tabla de los puntos de corte de la curva ROC con los valores de sensibilidad y especificidad despues del filtrado
 
 
 ##### ENSEMBLE RANKING #######
@@ -113,6 +152,8 @@ vector.AUC.ensembles <- vector()  ## creo vector vacio donde voy a poner las AUC
 low_conf_int <- vector() ## creo vector vacio donde voy a poner los valores bajos del intervalo de confianza de la AUC ROC
 
 high_conf_int <- vector() ## creo vector vacio donde voy a poner los valores altos del intervalo de confianza de la AUC ROC
+
+p.valores <- vector() ## creo un vector vacio donde voy a poner los valores de p-valor para las comparaciones de las AUC entre el ensemble y el mejor modelo individual
 
 cant.modelos <- 1:100 ## le doy la secuencia de la cantidad de modelos a combinar
 
@@ -126,6 +167,8 @@ for( i in cant.modelos){
         
         high_conf_int[i] <- resultado[[4]][[3]]
         
+        p.valores[i] <- resultado[[6]]$p.value
+        
 }  
 
 
@@ -135,12 +178,19 @@ high_conf_int2 <- high_conf_int - vector.AUC.ensembles ## creo un vector con la 
 
 library(plotly)
 
-plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="markers", 
+grafica.ranking <- plot_ly(x = ~cant.modelos, y = ~vector.AUC.ensembles,type = "scatter" ,mode="markers", 
         
-        error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
+                        error_y = ~list(type = "data", symmetric = FALSE, arrayminus = low_conf_int2, array = high_conf_int2)) %>%
         
-        layout(title = "Ensemble ranking - Training" , xaxis = list(title="cantidad de modelos en Ensemble"), yaxis=list(title="AUC curva ROC del Ensemble"))
+                        layout( xaxis = list(title="Number of individual models included in the ensemble", range = c(0,101) , dtick =5), yaxis=list(title="AUROC" , range = c(0.5 , 1.01) , dtick = 0.05 ))
 
+grafica.ranking
 
+htmlwidgets::saveWidget(as.widget(grafica.ranking), file = "AUROC vs cant modelos Ensemble ranking - Training.html")
 
+tabla.p.valores.AUC <- data.frame(cant.modelos, p.valores) ## genero una tabla donde guardo los p-valores de las comparaciones de las AUC ROC
+
+library(openxlsx)
+
+write.xlsx(x= tabla.p.valores.AUC, file= "tabla p-valores comparaciones AUC ROC ensemble ranking vs AUC ROC mejor individual - training.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar la tabla de los puntos de corte de la curva ROC con los valores de sensibilidad y especificidad despues del filtrado
 

@@ -11,9 +11,9 @@
 
 
 
-training.set  <- "Trainingpoliaminas2016.csv"  ### nombre del archivo con el training set
+training.set  <- "Training Sofia.csv"  ### nombre del archivo con el training set
 
-test.set <- "Testpoliaminas2016.csv"  ### nombre del archivo con el test set
+test.set <- "Test Sofia.csv"  ### nombre del archivo con el test set
 
 cant.arboles <- 3000  ### cant de arboles que pongo en el RF
 
@@ -31,11 +31,17 @@ library(randomForest) # cargo el paquete random forest
 
 library(pROC) ## cargo el paquete pROC
 
+library(caret) ## cargo el paquete caret
+
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
 training <- training[ , apply(training, 2, function(x) !any(is.na(x)))] ### elimino las columnas que contienen NaN
 
 training <- training[,-1] # elimino la columna con los nombres, dejo solo la columna clase con los descriptores
+
+sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las columnas que tienen sd = 0 ( o sea sin varianza) y las que tienen muy muy poca varianza
+
+training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
 training$clase <- as.factor(training$clase) # hago que la clase sea factor 
 
@@ -59,34 +65,61 @@ test <- test[, -which(names(test) == names(test)[duplicated(names(test))])] ## e
 
 }
 
-set.seed(125) ## seteo la semilla para que sea reproducible el random forest
+
+
+###################################
 
 
 
+cant.arboles <- 3000 ## cantidad de arboles que hago para luego buscar el mejor valor de ntree
 
-## lo que hacemos aca es random forest
+num.repeticiones <- 30 ## el numero de veces que hago correr el random forest para poder ver cual es el ntree optimo
 
-rf <- randomForest(clase ~.,  ## aca pongo la formula para decir cual es mi variable y y cual es mi x. en este caso la y = clase y x = al resto de las columnas
-                   
-                   data=training , ## explicito de donde saco los datos
-                   
-                   importance=TRUE, ## le digo que me calcule la importancia de las variables
-                   
-                   do.trace = TRUE, ### con esto le digo que me vaya diciendo como va la corrida
-                   
-                   ntree = cant.arboles , ## le digo el numero de arboles a armar
-                   
-                   proximity = TRUE) ## con esto le digo que me calcule la proximidad. La proximidad es la cantidad de veces que caen en la misma hoja 2 compuestos
+OOB <- matrix(ncol= num.repeticiones, nrow = cant.arboles) ### creo una matrix vacia donde voy a guardar los OOB error de los random forest que voy a armar
 
+for( i in 1:num.repeticiones) { ## repito 10 veces el random forest con 3000 arboles para encontrar el valor optimo
+        
+        set.seed(i)
+        
+        ## lo que hacemos aca es random forest
+        
+        rf <- randomForest(clase ~.,  ## aca pongo la formula para decir cual es mi variable y y cual es mi x. en este caso la y = clase y x = al resto de las columnas
+                           
+                           data=training , ## explicito de donde saco los datos
+                           
+                           importance=TRUE, ## le digo que me calcule la importancia de las variables
+                           
+                           do.trace = TRUE, ### con esto le digo que me vaya diciendo como va la corrida
+                           
+                           ntree = cant.arboles , ## le digo el numero de arboles a armar
+                           
+                           proximity = TRUE) ## con esto le digo que me calcule la proximidad. La proximidad es la cantidad de veces que caen en la misma hoja 2 compuestos
+        
+        
+        OOB[,i]<- rf$err.rate[,1]
+        
+}
 
+ntree <- 1:3000
 
-plot(rf, main = "Gráfico OOB error Random Forest") ## hago que grafique el error versus el numero de arboles en el training set
+OOB.promedio <- rowMeans(x = OOB, na.rm = FALSE, dims = 1)
 
-legend("top", colnames(rf$err.rate),col=1:4,cex=0.8,fill=1:4) ## con esto hago que aparezcan las referencias en el grafico anterior
+OOB.sd <- apply(X = OOB, 1, FUN =sd , na.rm = FALSE)
 
-varImpPlot(rf, n.var=10, main= "Importancia de variables en RF") ## grafico la importancia de las variables segun Random Forest
+df <- data.frame(ntree, OOB.promedio, OOB.sd)
 
-MDSplot(rf = rf,fac = training$clase , k =3) # Plot the scaling coordinates of the proximity matrix from randomForest. Hace escalado multidimensional de la matrix de proximidad. es una forma de ver si me separa las clases
+library(ggplot2)
+
+plot <- ggplot(df, aes(x=ntree, y=OOB.promedio)) + geom_errorbar(aes(ymin=OOB.promedio-OOB.sd, ymax=OOB.promedio+OOB.sd), width=.1) + geom_point()
+
+plot1 <- ggplot(df, aes(x=ntree, y=OOB.promedio)) + geom_point()
+
+library(plotly)
+
+ggplotly(plot)
+
+ggplotly(plot1)
+
 
 
 ############################
@@ -96,11 +129,28 @@ MDSplot(rf = rf,fac = training$clase , k =3) # Plot the scaling coordinates of t
 ############################
 
 
-cant.arboles.optimo <- 2500  #### ESTO LO SACO DE LOS GRAFICOS QUE HICE ANTES DE OOB
+cant.arboles.optimo <- 561  #### ESTO LO SACO DE LOS GRAFICOS QUE HICE ANTES DE OOB
 
 
 
-## vuelvo a correr el random forest pero esta vez con el numero optimo de arboles
+
+
+##### calculo el valor optimo de mtry
+
+
+mtry <- tuneRF(x = training[, -1] , y = training$clase , ntreeTry = cant.arboles.optimo , stepFactor = 1.5 , improve = 0.01 , trace = TRUE , plot = TRUE)
+
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1] ### extraigo el mtry que minimiza el OOB error
+
+
+
+
+
+
+## vuelvo a correr el random forest pero esta vez con el numero optimo de ntree y mtry
+
+set.seed(125)
+
 
 rf <- randomForest(clase ~., ## aca pongo la formula para decir cual es mi variable y y cual es mi x. en este caso la y = clase y x = al resto de las columnas
                    
@@ -111,6 +161,8 @@ rf <- randomForest(clase ~., ## aca pongo la formula para decir cual es mi varia
                    do.trace = TRUE, ### con esto le digo que me vaya diciendo como va la corrida
                    
                    ntree = cant.arboles.optimo , ## le digo el numero de arboles a armar
+                   
+                   mtry = best.m , ### le digo la cantidad de variables que tiene que samplear para armar cada arbol. Viene del valor optimo encontrado en el paso anterior
                    
                    keep.forest= TRUE , ## le digo que guarde el bosque para cuando uso la funcion predict tambien pueda calcular la proximidad
                    
@@ -157,7 +209,7 @@ resultado.rf
 
 rf <- resultado.rf[[2]] ### es la funcion obtenida de Random Forest
 
-test <-"Dudepoliaminas2016.csv"  ### nombre del test set
+test <-"S-M test set.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
