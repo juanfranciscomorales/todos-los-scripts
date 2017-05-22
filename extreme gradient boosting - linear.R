@@ -1,7 +1,7 @@
 ###########################################
 
 
-## # Neural Network con nnet - PARA 2 CLASES ##
+## #  EXTREME GRADIENT BOOSTING - PARA 2 CLASES ##
 
 
 ###########################################
@@ -17,16 +17,15 @@ if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no 
 
 if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
-
 library(caret) ## cargo el paquete caret que tiene varias funciones que voy a usar
 
 library(data.table) ## cargo este paquete para leer rapido los archivos
 
 
 
-training.set  <- "S-M-H training set.csv"  ### nombre del archivo con el training set
+training.set  <- "S-M training set.csv"  ### nombre del archivo con el training set
 
-test.set <- "S-M-H test set.csv"  ### nombre del archivo con el test set
+test.set <- "S-M test set.csv"  ### nombre del archivo con el test set
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
@@ -38,7 +37,7 @@ sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las column
 
 training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
-training$clase <- as.factor(make.names(training$clase)) ## hago que la columna clase sea como factor y con nombres validos para poder hacer que el Neural Network sea clasificatorio
+training$clase <- as.factor(make.names(training$clase)) ## hago que la columna clase sea como factor y con nombres validos para poder hacer que el boosting sea clasificatorio
 
 clase <- training$clase ## guardo los valores de clase para despues
 
@@ -56,10 +55,7 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 
 
 
-#       BUSQUEDA DE PARAMETROS OPTIMOS cuando 
-
-
-#               shrinkage = 0.01
+#       BUSQUEDA DE PARAMETROS OPTIMOS 
 
 
 
@@ -99,63 +95,81 @@ ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar 
 
 ## con esto seteo la busqueda para seleccionar los parametros optimos con shrinkage = 0.01 
 
-nnetGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de nnet
+xgboost.grid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
         
-                        size = 0:10 , ## number of units in the hidden layer. Can be zero if there are skip-layer units
-                        
-                        decay = c(0 , 0.0001 , 0.001 , 0.01 , 0.1) ## parameter for weight decay
-
+        nrounds = seq(from = 250, to = 2000, by = 250), ## este parametro es para ver el numero optimo de arboles
+        
+        eta = c(0.001, 0.003, 0.01, 0.3) ,# eta control the learning rate: scale the contribution of each tree by a factor of 0 < eta < 1 when it is added to the current approximation. Used to prevent overfitting by making the boosting process more conservative. Lower value for eta implies larger value for nrounds: low eta value means model more robust to overfitting but slower to compute. Default: 0.3
+        
+        lambda =  c(0 , 0.001 , 0.01 , 0.1), # lambda L2 regularization term on weights. Default: 0 . L2 regularization term on weights, increase this value will make model more conservative.
+                
+        alpha = c(0 , 0.001 , 0.01 , 0.1) #alpha L1 regularization term on weights. (there is no L1 reg on bias because it is not important). Default: 0. L1 regularization term on weights, increase this value will make model more conservative.
 )
-                        
-### Entreno el modelo por nnet y optimizo los valores
+
+
+### Entreno el modelo por gbm y optimizo los valores
 
 
 ptm <- proc.time()
 
-nnetfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
-                
-                data = training, ## le digo cuales son mis datos para armar el modelo
-                
-                method = "nnet", ## aca le digo que use knn para armar el modelo
-                
-                trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
-                
-                tuneGrid = nnetGrid , ## hago pasar el elemento nnetGrid para probar y encontrar cuales son los valores optimos 
-                
-                linout = FALSE, ## esto lo hago para que sea clasificatorio
-                
-                MaxNWts = 100000 # The maximum allowable number of weights. There is no intrinsic limit in the code, but increasing MaxNWts will probably allow fits that are very slow and time-consuming.
-                
-)
+xgboost.fit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
+                     
+                     data = training, ## le digo cuales son mis datos para armar el modelo
+                     
+                     method = "xgbLinear", ## aca le digo que use extreme gradient boosting con funciones lineales para armar el modelo
+                     
+                     trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
+                     
+                     tuneGrid = xgboost.grid , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
+                     
+                     objective = "binary:logistic") ## esto lo hago para que sea clasificatorio
 
-## pongo el valor de MaxNWts = 10000 porque sino me tira error y no me deja hacer la corrida
-               
+
 proc.time() - ptm
 
 
-nnetfit ## imprimo el resultado
+xgboost.fit ## imprimo el resultado
 
-plot(nnetfit) ## grafico los resultados del cross validation
+plot(xgboost.fit) ## grafico los resultados del cross validation
 
+training_importancia <- training[, -c(1)]## saco la columna clase para poder calcular las importancias de las variables
 
+variables.importantes <- xgb.importance(feature_names = colnames(training_importancia) , model = xgboost.fit$finalModel) ## con esto calculo la importancia de las variables
+
+plot_variables_importantes <- xgb.plot.importance(importance_matrix = variables.importantes , top_n = 20) ## grafico las variables mas importantes
 
 library(pROC) ## abro el paquete pROC para hacer las curvas ROC
 
-predicciones.train <- predict(nnetfit, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
+predicciones.train <- predict(xgboost.fit, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
 
 names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 auc.training <- auc(roc(predictor = predicciones.train$Activo,response = clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
 
-predicciones.test <- predict(nnetfit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+predicciones.test <- predict(xgboost.fit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 auc.test <- auc(roc(predictor= predicciones.test$Activo, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
 
-resultado.nnet <- list("Modelo armado por Neural Network", nnetfit  , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+resultado.xgboost <- list("Modelo armado por Extreme Gradient Boosting", xgboost.fit  , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
 
-resultado.nnet
+resultado.xgboost
+
+
+
+
+
+
+#####################################################################################
+###################################################################################
+###################################################################################
+
+
+
+
+
+
 
 
 
@@ -168,11 +182,11 @@ resultado.nnet
 
 
 
-test <- "S-M-H test set.csv"  ### nombre del test set
+test <- "S-M test set.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-predicciones.test <- predict(nnetfit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+predicciones.test <- predict(xgboost.fit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -188,7 +202,83 @@ plot(performance(predicciones , measure = "mat" , x.measure = "cutoff"), main = 
 
 plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="PPV vs cutoff") ## grafico de PPV versus punto de corte
 
-plot(performance(predicciones , measure = "acc" , x.measure = "cutoff"), main ="Accuracy vs cutoff") ## grafico de accuracy versus punto de corte
+
+
+
+library(ggplot2)
+
+library(plotly)
+
+
+performance.mat.cutoff <- performance(predicciones , measure = "mat" , x.measure = "cutoff")
+
+df.mat.cutoff <- data.frame(performance.mat.cutoff@x.values , performance.mat.cutoff@y.values)
+
+colnames(df.mat.cutoff) <- c( "cutoff" , "mat")
+
+
+
+performance.ppv.cutoff <- performance(predicciones , measure = "ppv" , x.measure = "cutoff")
+
+df.ppv.cutoff <- data.frame(performance.ppv.cutoff@x.values , performance.ppv.cutoff@y.values)
+
+colnames(df.ppv.cutoff) <- c( "cutoff" , "ppv")
+
+
+
+performance.acc.cutoff <- performance(predicciones , measure = "acc" , x.measure = "cutoff")
+
+df.acc.cutoff <- data.frame(performance.acc.cutoff@x.values , performance.acc.cutoff@y.values)
+
+colnames(df.acc.cutoff) <- c( "cutoff" , "acc")
+
+
+
+performance.sens.cutoff <- performance(predicciones , measure = "sens" , x.measure = "cutoff")
+
+df.sens.cutoff <- data.frame(performance.sens.cutoff@x.values , performance.sens.cutoff@y.values)
+
+colnames(df.sens.cutoff) <- c( "cutoff" , "sens")
+
+
+
+performance.spec.cutoff <- performance(predicciones , measure = "spec" , x.measure = "cutoff")
+
+df.spec.cutoff <- data.frame(performance.spec.cutoff@x.values , performance.spec.cutoff@y.values)
+
+colnames(df.spec.cutoff) <- c( "cutoff" , "spec")
+
+
+
+performance.npv.cutoff <- performance(predicciones , measure = "npv" , x.measure = "cutoff")
+
+df.npv.cutoff <- data.frame(performance.npv.cutoff@x.values , performance.npv.cutoff@y.values)
+
+colnames(df.npv.cutoff) <- c( "cutoff" , "npv")
+
+
+
+grafico <- ggplot () + 
+        
+        geom_line(data = df.mat.cutoff , aes(x = cutoff, y = mat , color = "mat" ) , size = 1) + 
+        
+        geom_line(data = df.ppv.cutoff , aes(x = cutoff, y = ppv , color = "ppv" ) , size = 1) + 
+        
+        geom_line(data = df.acc.cutoff , aes(x = cutoff, y = acc , color = "acc" ) , size = 1) +
+        
+        geom_line(data = df.sens.cutoff , aes(x = cutoff, y = sens , color = "sens" ) , size = 1) +
+        
+        geom_line(data = df.spec.cutoff , aes(x = cutoff, y = spec , color = "spec" ) , size = 1) +
+        
+        geom_line(data = df.npv.cutoff , aes(x = cutoff, y = npv , color = "npv" ) , size = 1) +
+        
+        scale_colour_manual(values = c("red", "blue", "green" , "violet" , "yellow" , "orange")) +
+        
+        labs(colour = "Variable", y = NULL) 
+
+
+ggplotly(grafico)
+
 
 
 
@@ -200,16 +290,16 @@ plot(performance(predicciones , measure = "acc" , x.measure = "cutoff"), main ="
 ################### GRAFICO DE SUPERFICIE 3D - PPV  #######################
 
 
-### en este caso no lo hice porque no tiene lógica de hacerlo
 
 
 
 
-dude.set <- ".csv"
+
+dude.set <- "Ddudesmiristoiltodos.csv"
 
 dude <- as.data.frame(fread(input = dude.set, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
-predicciones.dude <- predict(nnetfit, newdata = dude, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+predicciones.dude <- predict(gbmfit, newdata = dude, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.dude) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -309,7 +399,7 @@ base.datos <- "base drugbank 24-10-16.csv" ### nombre del archivo con la base de
 
 df.base.datos <- as.data.frame(fread(input=base.datos, check.names = TRUE)) #leo el archivo con la base de datos
 
-predicciones.base.datos <- predict(nnetfit, newdata = df.base.datos, type="prob" , na.action = na.pass)  ## predicciones en la base de datos expresadas como probabilidad
+predicciones.base.datos <- predict(xgboost.fit, newdata = df.base.datos, type="prob" , na.action = na.pass)  ## predicciones en la base de datos expresadas como probabilidad
 
 names(predicciones.base.datos) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -317,7 +407,7 @@ predicciones.base.datos$NOMBRE <- df.base.datos$NAME ## agrego una columna que s
 
 library(openxlsx)
 
-write.xlsx(x= predicciones.base.datos, file= "Screening por Neural Network- nnet con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
+write.xlsx(x= predicciones.base.datos, file= "Screening por Extreme Gradient Boosting con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
 
 
 

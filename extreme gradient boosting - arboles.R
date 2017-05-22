@@ -1,7 +1,7 @@
 ###########################################
 
 
-## # BOOSTING - PARA 2 CLASES ##
+## #  EXTREME GRADIENT BOOSTING - PARA 2 CLASES ##
 
 
 ###########################################
@@ -23,15 +23,15 @@ library(data.table) ## cargo este paquete para leer rapido los archivos
 
 
 
-training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set
+training.set  <- "S-M training set.csv"  ### nombre del archivo con el training set
 
-test.set <- "Dtestmiristoil.csv"  ### nombre del archivo con el test set
+test.set <- "S-M test set.csv"  ### nombre del archivo con el test set
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
 training <- training[ , apply(training, 2, function(x) !any(is.na(x)))] ### elimino las columnas que contienen NaN
 
-training <- training[,-1] # elimino la columna nombres, dejo solo las columnas con los descriptores y la clase
+training <- training[,-c(1,2,4)] # elimino la columna nombres, dejo solo las columnas con los descriptores y la clase
 
 sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las columnas que tienen sd = 0 ( o sea sin varianza) y las que tienen muy muy poca varianza
 
@@ -55,10 +55,7 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 
 
 
-#       BUSQUEDA DE PARAMETROS OPTIMOS cuando 
-
-
-#               shrinkage = 0.01
+#       BUSQUEDA DE PARAMETROS OPTIMOS 
 
 
 
@@ -72,43 +69,49 @@ set.seed(1)
 
 ## seteo para la cross validation
 
-ctrl.01 <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
-                     
-                     verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
-                     
-                     number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
-                     
-                     repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
-                     
-                     classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
-                     
-                     adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
-                                     
-                                     alpha = 0.05, ## is a confidence level that is used to remove parameter settings. To date, this value has not shown much of an effect.
-                                     
-                                     method = "gls", ## is either "gls" for a linear model or "BT" for a Bradley-Terry model. The latter may be more useful when you expect the model to do very well (e.g. an area under the ROC curve near 1) or when there are a large number of tuning parameter settings.
-                                     
-                                     complete = TRUE)  ##is a logical value that specifies whether train should generate the full resampling set if it finds an optimal solution before the end of resampling. If you want to know the optimal parameter settings and don't care much for the estimated performance value, a value of FALSE would be appropriate here.
-                     
-                     # , summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
-                     
+ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                        
+                        verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
+                        
+                        number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
+                        
+                        repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                        
+                        classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
+                        
+                        adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
+                                        
+                                        alpha = 0.05, ## is a confidence level that is used to remove parameter settings. To date, this value has not shown much of an effect.
+                                        
+                                        method = "gls", ## is either "gls" for a linear model or "BT" for a Bradley-Terry model. The latter may be more useful when you expect the model to do very well (e.g. an area under the ROC curve near 1) or when there are a large number of tuning parameter settings.
+                                        
+                                        complete = TRUE)  ##is a logical value that specifies whether train should generate the full resampling set if it finds an optimal solution before the end of resampling. If you want to know the optimal parameter settings and don't care much for the estimated performance value, a value of FALSE would be appropriate here.
+                        
+                        # , summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
+                        
 )
 
 
 
 ## con esto seteo la busqueda para seleccionar los parametros optimos con shrinkage = 0.01 
 
-gbmGrid.01 <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
+xgboost.grid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
         
-                        interaction.depth = 1 , ## este parametro es para ver la profundidad del arbol optima
-                        
-                        n.trees = seq(from = 100 , to = 3000, by = 100), ## este parametro es para ver el numero optimo de arboles
-                        
-                        shrinkage = 0.01 , ## es un valor de restriccion. Tengo que buscar el valor optimo. Mientras mas bajo mejor pero el costo computacional es mayor
-                        
-                        n.minobsinnode = 10 ) ## el numero minimo de observaciones en cada hoja. Si es muy bajo puede terminar en overfitting
-
-
+        max_depth = c(1, 2, 4, 6) , ## max_depth maximum depth of a tree. Default: 6. este parametro es para ver la profundidad del arbol optima
+        
+        nrounds = c(250, 500, 1000), ## este parametro es para ver el numero optimo de arboles
+        
+        eta = c(0.001, 0.003, 0.01, 0.3), # eta control the learning rate: scale the contribution of each tree by a factor of 0 < eta < 1 when it is added to the current approximation. Used to prevent overfitting by making the boosting process more conservative. Lower value for eta implies larger value for nrounds: low eta value means model more robust to overfitting but slower to compute. Default: 0.3
+        
+        gamma = c(0, 1, 2), # gamma minimum loss reduction required to make a further partition on a leaf node of the tree. the larger, the more conservative the algorithm will be.
+        
+        colsample_bytree = c(0.4 , 0.6 , 0.8 , 1), #colsample_bytree subsample ratio of columns when constructing each tree. Default: 1
+        
+        subsample = c(0.5 , 0.75 , 1), #subsample ratio of the training instance. Setting it to 0.5 means that XGBoost randomly collected half of the data instances to grow trees and this will prevent overfitting. default = 1.
+        
+        min_child_weight = c(1, 2) # minimum sum of instance weight (hessian) needed in a child. If the tree partition step results in a leaf node with the sum of instance weight less than min_child_weight, then the building process will give up further partitioning. In linear regression mode, this simply corresponds to minimum number of instances needed to be in each node. The larger, the more conservative the algorithm will be. default = 1
+        
+)
 
 
 ### Entreno el modelo por gbm y optimizo los valores
@@ -116,51 +119,50 @@ gbmGrid.01 <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido 
 
 ptm <- proc.time()
 
-gbmfit.01 <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
-                
-                data = training, ## le digo cuales son mis datos para armar el modelo
-                
-                method = "gbm", ## aca le digo que use knn para armar el modelo
-                
-                trControl = ctrl.01,  ## le digo que use el elemento ctrl para optimizar el modelo
-                
-                tuneGrid = gbmGrid.01 , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
-                
-                distribution = "bernoulli") ## esto lo hago para que sea clasificatorio
-                
-               
+xgboost.fit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
+                   
+                   data = training, ## le digo cuales son mis datos para armar el modelo
+                   
+                   method = "xgbTree", ## aca le digo que use extreme gradient boosting con arboles para armar el modelo
+                   
+                   trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
+                   
+                   tuneGrid = xgboost.grid , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
+                   
+                   objective = "binary:logistic") ## esto lo hago para que sea clasificatorio
+
+
 proc.time() - ptm
 
 
-gbmfit.01 ## imprimo el resultado
+xgboost.fit ## imprimo el resultado
 
-plot(gbmfit.01) ## grafico los resultados del cross validation
+plot(xgboost.fit) ## grafico los resultados del cross validation
 
 
+training_importancia <- training[, -c(1)]## saco la columna clase para poder calcular las importancias de las variables
 
-variables.importantes <- head(summary(gbmfit.01), n = 20) ## extraigo un data frame que contiene los valores de influencia y el nombre de las variables. con n decido cuantas variables mas importantes extraigo
+variables.importantes <- xgb.importance(feature_names = colnames(training_importancia) , model = xgboost.fit$finalModel) ## con esto calculo la importancia de las variables
 
-variables.importantes <- transform(variables.importantes, var = reorder(var, rel.inf)) ## este paso lo hago asi en el siguiente grafico me pone ordenadas por la influencia relativa y no por orden alfabetico
-
-ggplot(data = variables.importantes , aes(x = var, y = rel.inf)) + geom_bar(stat="identity", fill="steelblue")  + coord_flip() + theme_minimal() + labs(title = "20 most influence variables in Boosting", y = "Relative Influence" , x = "Variable") + theme(plot.title = element_text(hjust = 0.5))  ## con esto grafico las 20 variables que mas influyen en el armado del modelo
+plot_variables_importantes <- xgb.plot.importance(importance_matrix = variables.importantes , top_n = 20) ## grafico las variables mas importantes
 
 library(pROC) ## abro el paquete pROC para hacer las curvas ROC
 
-predicciones.train <- predict(gbmfit.01, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
+predicciones.train <- predict(xgboost.fit, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
 
 names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 auc.training <- auc(roc(predictor = predicciones.train$Activo,response = clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
 
-predicciones.test <- predict(gbmfit.01, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+predicciones.test <- predict(xgboost.fit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 auc.test <- auc(roc(predictor= predicciones.test$Activo, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
 
-resultado.gbm.01 <- list("Modelo armado por Boosting", gbmfit.01  , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+resultado.xgboost <- list("Modelo armado por Extreme Gradient Boosting", xgboost.fit  , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
 
-resultado.gbm.01
+resultado.xgboost
 
 
 
@@ -170,118 +172,6 @@ resultado.gbm.01
 #####################################################################################
 ###################################################################################
 ###################################################################################
-
-
-
-
-#  VIENDO LOS RESULTADOS ANTERIORES DECIDO CUALES SON LOS ULTIMOS PARAMETROS A 
-
-# OPTIMIZAR. LA BUSQUEDA FINA HAGO AHORA
-
-
-set.seed(1)
-
-
-## seteo para la cross validation
-
-ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
-                         
-                         verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
-                         
-                         number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
-                         
-                         repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
-                         
-                         classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
-                         
-                         adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
-                                         
-                                         alpha = 0.05, ## is a confidence level that is used to remove parameter settings. To date, this value has not shown much of an effect.
-                                         
-                                         method = "gls", ## is either "gls" for a linear model or "BT" for a Bradley-Terry model. The latter may be more useful when you expect the model to do very well (e.g. an area under the ROC curve near 1) or when there are a large number of tuning parameter settings.
-                                         
-                                         complete = TRUE)  ##is a logical value that specifies whether train should generate the full resampling set if it finds an optimal solution before the end of resampling. If you want to know the optimal parameter settings and don't care much for the estimated performance value, a value of FALSE would be appropriate here.
-                         
-                         # , summaryFunction = twoClassSummary ##  con esto hago que la seleccion del mejor modelo sea por curva ROC
-                         
-)
-
-
-
-## con esto seteo la busqueda para seleccionar los parametros optimos
-
-
-## COMPLETO SEGUN LAS CONCLUSIONES DE CORRIDAS ANTERIORES PARA HACER LA 
-## BUSQUEDA FINA DE LA OPTIMIZACION
-
-
-
-gbmGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
-        
-        interaction.depth = 1 , ## este parametro es para ver la profundidad del arbol optima
-        
-        n.trees = seq(from = gbmfit.01$finalModel$n.trees -99 , to = gbmfit.01$finalModel$n.trees + 99 , by = 1), ## este parametro es para ver el numero optimo de arboles
-        
-        shrinkage = 0.01 , ## es un valor de restriccion. Tengo que buscar el valor optimo. Mientras mas bajo mejor pero el costo computacional es mayor
-        
-        n.minobsinnode = 10 ) ## el numero minimo de observaciones en cada hoja. Si es muy bajo puede terminar en overfitting
-
-
-
-
-### Entreno el modelo por gbm y optimizo los valores
-
-
-ptm <- proc.time()
-
-gbmfit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
-                    
-                    data = training, ## le digo cuales son mis datos para armar el modelo
-                    
-                    method = "gbm", ## aca le digo que use knn para armar el modelo
-                    
-                    trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
-                    
-                    tuneGrid = gbmGrid , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
-                    
-                    distribution = "bernoulli") ## esto lo hago para que sea clasificatorio
-
-
-proc.time() - ptm
-
-
-
-
-gbmfit ## imprimo el resultado
-
-plot(gbmfit) ## grafico los resultados del cross validation
-
-
-
-
-variables.importantes <- head(summary(gbmfit), n = 20) ## extraigo un data frame que contiene los valores de influencia y el nombre de las variables. con n decido cuantas variables mas importantes extraigo
-
-variables.importantes <- transform(variables.importantes, var = reorder(var, rel.inf)) ## este paso lo hago asi en el siguiente grafico me pone ordenadas por la influencia relativa y no por orden alfabetico
-
-ggplot(data = variables.importantes , aes(x = var, y = rel.inf)) + geom_bar(stat="identity", fill="steelblue")  + coord_flip() + theme_minimal() + labs(title = "20 most influence variables in Boosting", y = "Relative Influence" , x = "Variable") + theme(plot.title = element_text(hjust = 0.5))  ## con esto grafico las 20 variables que mas influyen en el armado del modelo
-
-library(pROC) ## abro el paquete pROC para hacer las curvas ROC
-
-predicciones.train <- predict(gbmfit, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
-
-names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
-
-auc.training <- auc(roc(predictor = predicciones.train$Activo,response = clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
-
-predicciones.test <- predict(gbmfit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
-
-names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
-
-auc.test <- auc(roc(predictor= predicciones.test$Activo, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
-
-resultado.gbm <- list("Modelo armado por Boosting", gbmfit  , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
-
-resultado.gbm
 
 
 
@@ -300,11 +190,11 @@ resultado.gbm
 
 
 
-test <- "Ddudesmiristoiltodos.csv"  ### nombre del test set
+test <- "S-M test set.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-predicciones.test <- predict(gbmfit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+predicciones.test <- predict(xgboost.fit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -517,7 +407,7 @@ base.datos <- "base drugbank 24-10-16.csv" ### nombre del archivo con la base de
 
 df.base.datos <- as.data.frame(fread(input=base.datos, check.names = TRUE)) #leo el archivo con la base de datos
 
-predicciones.base.datos <- predict(gbmfit, newdata = df.base.datos, type="prob" , na.action = na.pass)  ## predicciones en la base de datos expresadas como probabilidad
+predicciones.base.datos <- predict(xgboost.fit, newdata = df.base.datos, type="prob" , na.action = na.pass)  ## predicciones en la base de datos expresadas como probabilidad
 
 names(predicciones.base.datos) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -525,7 +415,7 @@ predicciones.base.datos$NOMBRE <- df.base.datos$NAME ## agrego una columna que s
 
 library(openxlsx)
 
-write.xlsx(x= predicciones.base.datos, file= "Screening por Boosting- GBM con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
+write.xlsx(x= predicciones.base.datos, file= "Screening por Extreme Gradient Boosting con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
 
 
 

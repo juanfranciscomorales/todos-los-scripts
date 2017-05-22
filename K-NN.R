@@ -1,4 +1,13 @@
 
+###########################################
+
+
+             ### K- NN ###
+
+
+###########################################
+
+
 is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
 
 if (is.installed("data.table") == FALSE) {install.packages("data.table")} #si openxlsx no est? instalado hago que me lo instale automaticamente
@@ -40,6 +49,8 @@ test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros p
 
 
 ## seteo para la cross validation
+
+set.seed(1)
 
 ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation adaptativo. Esto hace que mi corrida sea mas corta porque va eliminando a medida que ve cuales dan mal
                      
@@ -122,7 +133,7 @@ names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a la
 
 auc.test <- auc(roc(predictor= predicciones.test$Activo, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
 
-resultado.knn <- list("Modelo armado por knn", knnFit ,"Numero de k Óptimo",  knnFit$finalModel , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+resultado.knn <- list("Modelo armado por knn", knnFit ,"Numero de k Óptimo",  knnFit$finalModel , "AUC ROC Training" , auc.training,"Resultado K-fold CV" , getTrainPerf(knnFit) , "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
 
 resultado.knn
 
@@ -132,14 +143,124 @@ resultado.knn
 
 
 
-######### GRAFICOS PARA ANALIZAR LOS RESULTADOS ############
+######### GRAFICOS PARA ANALIZAR LOS RESULTADOS - TRAINING SET ############
+
+
+
+
+predicciones.train <- predict(knnFit, newdata = training, type="prob" , na.action = na.pass)  ## predicciones en el train set expresadas como probabilidad
+
+names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
+
+library(ROCR) ## abro el paquete ROCR
+
+predicciones <- prediction(predictions = predicciones.train$Activo, labels = training$clase) ## genero los valores para armar los diferentes graficos
+
+plot(performance(predicciones , measure = "tpr" , x.measure = "fpr"), main ="ROC Curve Training set") ## grafico de PPV versus punto de corte
+
+abline(0,1) ### agrego la linea que muestra como seria la clasificacion si fuese aleatoria
+
+plot(performance(predicciones , measure = "mat" , x.measure = "cutoff"), main = "MCC vs cutoff - Training set") ## grafico el valor del MCC(Matthews Correlation Coefficient) , mientas mas cercano a 1 mejor, mayor a 0.7 seria optimo
+
+plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="PPV vs cutoff - Training set") ## grafico de PPV versus punto de corte
+
+plot(performance(predicciones , measure = "acc" , x.measure = "cutoff"), main ="Accuracy vs cutoff - Training set") ## grafico de accuracy versus punto de corte
+
+
+
+library(ggplot2)
+
+library(plotly)
+
+
+performance.mat.cutoff <- performance(predicciones , measure = "mat" , x.measure = "cutoff")
+
+df.mat.cutoff <- data.frame(performance.mat.cutoff@x.values , performance.mat.cutoff@y.values)
+
+colnames(df.mat.cutoff) <- c( "cutoff" , "mat")
+
+
+
+performance.ppv.cutoff <- performance(predicciones , measure = "ppv" , x.measure = "cutoff")
+
+df.ppv.cutoff <- data.frame(performance.ppv.cutoff@x.values , performance.ppv.cutoff@y.values)
+
+colnames(df.ppv.cutoff) <- c( "cutoff" , "ppv")
+
+
+
+performance.acc.cutoff <- performance(predicciones , measure = "acc" , x.measure = "cutoff")
+
+df.acc.cutoff <- data.frame(performance.acc.cutoff@x.values , performance.acc.cutoff@y.values)
+
+colnames(df.acc.cutoff) <- c( "cutoff" , "acc")
+
+
+
+performance.sens.cutoff <- performance(predicciones , measure = "sens" , x.measure = "cutoff")
+
+df.sens.cutoff <- data.frame(performance.sens.cutoff@x.values , performance.sens.cutoff@y.values)
+
+colnames(df.sens.cutoff) <- c( "cutoff" , "sens")
+
+
+
+performance.spec.cutoff <- performance(predicciones , measure = "spec" , x.measure = "cutoff")
+
+df.spec.cutoff <- data.frame(performance.spec.cutoff@x.values , performance.spec.cutoff@y.values)
+
+colnames(df.spec.cutoff) <- c( "cutoff" , "spec")
+
+
+
+performance.npv.cutoff <- performance(predicciones , measure = "npv" , x.measure = "cutoff")
+
+df.npv.cutoff <- data.frame(performance.npv.cutoff@x.values , performance.npv.cutoff@y.values)
+
+colnames(df.npv.cutoff) <- c( "cutoff" , "npv")
+
+
+
+grafico <- ggplot () + 
+        
+        geom_line(data = df.mat.cutoff , aes(x = cutoff, y = mat , color = "mat" ) , size = 1) + 
+        
+        geom_line(data = df.ppv.cutoff , aes(x = cutoff, y = ppv , color = "ppv" ) , size = 1) + 
+        
+        geom_line(data = df.acc.cutoff , aes(x = cutoff, y = acc , color = "acc" ) , size = 1) +
+        
+        geom_line(data = df.sens.cutoff , aes(x = cutoff, y = sens , color = "sens" ) , size = 1) +
+        
+        geom_line(data = df.spec.cutoff , aes(x = cutoff, y = spec , color = "spec" ) , size = 1) +
+        
+        geom_line(data = df.npv.cutoff , aes(x = cutoff, y = npv , color = "npv" ) , size = 1) +
+        
+        scale_colour_manual(values = c("red", "blue", "green" , "violet" , "yellow" , "orange")) +
+        
+        ggtitle("Training set") +
+        
+        labs(colour = "Variable", y = NULL) 
+
+
+ggplotly(grafico)
 
 
 
 
 
 
-test <- "Ddudes2miristoil.csv"  ### nombre del test set
+
+
+
+
+######### GRAFICOS PARA ANALIZAR LOS RESULTADOS - TEST SET ############
+
+
+
+
+
+
+test <- "Dtestmiristoil.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
@@ -147,7 +268,7 @@ test$clase <- as.factor(test$clase) # hago que la clase sea factor
 
 test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
 
-predicciones.test <- predict(knnFit, newdata = test, type="prob")  ## predicciones en el test set expresadas como probabilidad
+predicciones.test <- predict(knnFit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -162,6 +283,109 @@ abline(0,1) ### agrego la linea que muestra como seria la clasificacion si fuese
 plot(performance(predicciones , measure = "mat" , x.measure = "cutoff"), main = "MCC vs cutoff") ## grafico el valor del MCC(Matthews Correlation Coefficient) , mientas mas cercano a 1 mejor, mayor a 0.7 seria optimo
 
 plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="PPV vs cutoff") ## grafico de PPV versus punto de corte
+
+plot(performance(predicciones , measure = "acc" , x.measure = "cutoff"), main ="Accuracy vs cutoff") ## grafico de accuracy versus punto de corte
+
+
+
+library(ggplot2)
+
+library(plotly)
+
+
+performance.mat.cutoff <- performance(predicciones , measure = "mat" , x.measure = "cutoff")
+
+df.mat.cutoff <- data.frame(performance.mat.cutoff@x.values , performance.mat.cutoff@y.values)
+
+colnames(df.mat.cutoff) <- c( "cutoff" , "mat")
+
+
+
+performance.ppv.cutoff <- performance(predicciones , measure = "ppv" , x.measure = "cutoff")
+
+df.ppv.cutoff <- data.frame(performance.ppv.cutoff@x.values , performance.ppv.cutoff@y.values)
+
+colnames(df.ppv.cutoff) <- c( "cutoff" , "ppv")
+
+
+
+performance.acc.cutoff <- performance(predicciones , measure = "acc" , x.measure = "cutoff")
+
+df.acc.cutoff <- data.frame(performance.acc.cutoff@x.values , performance.acc.cutoff@y.values)
+
+colnames(df.acc.cutoff) <- c( "cutoff" , "acc")
+
+
+
+performance.sens.cutoff <- performance(predicciones , measure = "sens" , x.measure = "cutoff")
+
+df.sens.cutoff <- data.frame(performance.sens.cutoff@x.values , performance.sens.cutoff@y.values)
+
+colnames(df.sens.cutoff) <- c( "cutoff" , "sens")
+
+
+
+performance.spec.cutoff <- performance(predicciones , measure = "spec" , x.measure = "cutoff")
+
+df.spec.cutoff <- data.frame(performance.spec.cutoff@x.values , performance.spec.cutoff@y.values)
+
+colnames(df.spec.cutoff) <- c( "cutoff" , "spec")
+
+
+
+performance.npv.cutoff <- performance(predicciones , measure = "npv" , x.measure = "cutoff")
+
+df.npv.cutoff <- data.frame(performance.npv.cutoff@x.values , performance.npv.cutoff@y.values)
+
+colnames(df.npv.cutoff) <- c( "cutoff" , "npv")
+
+
+
+grafico <- ggplot () + 
+        
+        geom_line(data = df.mat.cutoff , aes(x = cutoff, y = mat , color = "mat" ) , size = 1) + 
+        
+        geom_line(data = df.ppv.cutoff , aes(x = cutoff, y = ppv , color = "ppv" ) , size = 1) + 
+        
+        geom_line(data = df.acc.cutoff , aes(x = cutoff, y = acc , color = "acc" ) , size = 1) +
+        
+        geom_line(data = df.sens.cutoff , aes(x = cutoff, y = sens , color = "sens" ) , size = 1) +
+        
+        geom_line(data = df.spec.cutoff , aes(x = cutoff, y = spec , color = "spec" ) , size = 1) +
+        
+        geom_line(data = df.npv.cutoff , aes(x = cutoff, y = npv , color = "npv" ) , size = 1) +
+        
+        scale_colour_manual(values = c("red", "blue", "green" , "violet" , "yellow" , "orange")) +
+        
+        ggtitle("Test set") +
+        
+        labs(colour = "Variable", y = NULL) 
+
+
+ggplotly(grafico)
+
+
+
+
+##############################################################
+
+##############################################################
+
+## Para guardar el modelo y despues volver a cargarlo 
+## cuando lo necesito asi no lo calculo otra vez.
+
+#############################################################
+
+#############################################################
+
+
+
+
+saveRDS(knnFit, "knnFit.rds") ## guardo el modelo 
+
+
+knnFit <- readRDS("knnFit.rds") ## vuelvo a cargar el modelo
+
 
 
 

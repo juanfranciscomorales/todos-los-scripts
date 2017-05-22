@@ -199,6 +199,83 @@ plot(performance(predicciones , measure = "ppv" , x.measure = "cutoff"), main ="
 
 
 
+library(ggplot2)
+
+library(plotly)
+
+
+performance.mat.cutoff <- performance(predicciones , measure = "mat" , x.measure = "cutoff")
+
+df.mat.cutoff <- data.frame(performance.mat.cutoff@x.values , performance.mat.cutoff@y.values)
+
+colnames(df.mat.cutoff) <- c( "cutoff" , "mat")
+
+
+
+performance.ppv.cutoff <- performance(predicciones , measure = "ppv" , x.measure = "cutoff")
+
+df.ppv.cutoff <- data.frame(performance.ppv.cutoff@x.values , performance.ppv.cutoff@y.values)
+
+colnames(df.ppv.cutoff) <- c( "cutoff" , "ppv")
+
+
+
+performance.acc.cutoff <- performance(predicciones , measure = "acc" , x.measure = "cutoff")
+
+df.acc.cutoff <- data.frame(performance.acc.cutoff@x.values , performance.acc.cutoff@y.values)
+
+colnames(df.acc.cutoff) <- c( "cutoff" , "acc")
+
+
+
+performance.sens.cutoff <- performance(predicciones , measure = "sens" , x.measure = "cutoff")
+
+df.sens.cutoff <- data.frame(performance.sens.cutoff@x.values , performance.sens.cutoff@y.values)
+
+colnames(df.sens.cutoff) <- c( "cutoff" , "sens")
+
+
+
+performance.spec.cutoff <- performance(predicciones , measure = "spec" , x.measure = "cutoff")
+
+df.spec.cutoff <- data.frame(performance.spec.cutoff@x.values , performance.spec.cutoff@y.values)
+
+colnames(df.spec.cutoff) <- c( "cutoff" , "spec")
+
+
+
+performance.npv.cutoff <- performance(predicciones , measure = "npv" , x.measure = "cutoff")
+
+df.npv.cutoff <- data.frame(performance.npv.cutoff@x.values , performance.npv.cutoff@y.values)
+
+colnames(df.npv.cutoff) <- c( "cutoff" , "npv")
+
+
+
+grafico <- ggplot () + 
+        
+        geom_line(data = df.mat.cutoff , aes(x = cutoff, y = mat , color = "mat" ) , size = 1) + 
+        
+        geom_line(data = df.ppv.cutoff , aes(x = cutoff, y = ppv , color = "ppv" ) , size = 1) + 
+        
+        geom_line(data = df.acc.cutoff , aes(x = cutoff, y = acc , color = "acc" ) , size = 1) +
+        
+        geom_line(data = df.sens.cutoff , aes(x = cutoff, y = sens , color = "sens" ) , size = 1) +
+        
+        geom_line(data = df.spec.cutoff , aes(x = cutoff, y = spec , color = "spec" ) , size = 1) +
+        
+        geom_line(data = df.npv.cutoff , aes(x = cutoff, y = npv , color = "npv" ) , size = 1) +
+        
+        scale_colour_manual(values = c("red", "blue", "green" , "violet" , "yellow" , "orange")) +
+        
+        labs(colour = "Variable", y = NULL) 
+
+
+ggplotly(grafico)
+
+
+
+
 
 
 ################### GRAFICO DE SUPERFICIE 3D - PPV  #######################
