@@ -18,12 +18,13 @@ if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no 
 
 if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
-if (is.installed("compiler") == FALSE) {install.packages("compiler")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+if (is.installed("gbm") == FALSE) {install.packages("gbm")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
 library(caret) ## cargo el paquete caret que tiene varias funciones que voy a usar
 
 library(data.table) ## cargo este paquete para leer rapido los archivos
 
+library(gbm)
 
 
 training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set

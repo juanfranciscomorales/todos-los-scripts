@@ -108,6 +108,7 @@ plsfit ## imprimo el resultado
 
 plot(plsfit) ## grafico los resultados del cross validation
 
+plot(varImp(plsfit), top = 20) ## grafico de las 20 variables mas importantes
 
 
 

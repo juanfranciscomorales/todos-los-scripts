@@ -210,6 +210,29 @@ ggplotly(grafico)
 
 
 
+##############################################################
+
+##############################################################
+
+## Para guardar el modelo y despues volver a cargarlo 
+## cuando lo necesito asi no lo calculo otra vez.
+
+#############################################################
+
+#############################################################
+
+
+
+
+
+saveRDS(plsfit, "PCRfit.rds") ## guardo el modelo 
+
+
+plsfit <- readRDS("PCRfit.rds") ## vuelvo a cargar el modelo
+
+
+
+
 
 
 

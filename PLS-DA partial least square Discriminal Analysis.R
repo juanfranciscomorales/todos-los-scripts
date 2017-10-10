@@ -275,6 +275,29 @@ ggplotly(grafico)
 
 
 
+##############################################################
+
+##############################################################
+
+## Para guardar el modelo y despues volver a cargarlo 
+## cuando lo necesito asi no lo calculo otra vez.
+
+#############################################################
+
+#############################################################
+
+
+
+
+
+saveRDS(plsfit, "plsDAfit.rds") ## guardo el modelo 
+
+
+plsfit <- readRDS("plsDAfit.rds") ## vuelvo a cargar el modelo
+
+
+
+
 
 
 
