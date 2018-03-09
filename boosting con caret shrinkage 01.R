@@ -19,11 +19,20 @@ if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no es
 
 if (is.installed("gbm") == FALSE) {install.packages("gbm")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
+if (is.installed("parallel") == FALSE) {install.packages("parallel")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+if (is.installed("doParallel") == FALSE) {install.packages("doParallel")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
 library(caret) ## cargo el paquete caret que tiene varias funciones que voy a usar
 
 library(data.table) ## cargo este paquete para leer rapido los archivos
 
 library(gbm)
+
+library(parallel) ##  paquete para hacer paralelizacion 
+
+library(doParallel) ##  paquete para hacer paralelizacion 
+
 
 
 training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set
@@ -49,6 +58,36 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 
 
 
+#########################################
+
+## CONFIGURACION PARA HACER PARALELIZACION ##
+
+#########################################
+
+
+set.seed(1)
+
+## seteo para poder hacer calculos en paralelo
+
+cores <- detectCores() ## con esta funcion obtengo el numero de nucleos de la compu
+
+cls = makeCluster(cores) # Creates a set of copies of R running in parallel and communicating over sockets.
+
+registerDoParallel(cls) ## The registerDoParallel function is used to register the parallel backend with the foreach package.
+
+
+## genero una lista de seeds para poder hacer reproducible el ejemplo
+## lista tiene 1000 elementos con un vector de 1000 dentro de cada elemento
+## lo hago enorme por las dudas, ademas si sobran seeds no hay drama
+
+
+seeds <- vector(mode = "list", length = 1000) ## creo una lista de largo 1000
+
+for(i in 1:length(seeds)) seeds[[i]] <- sample.int(1000, 1000) ## hago que cada elemento de la lista este compuesto por un vector con 1000 enteros.
+
+
+
+
 
 
 
@@ -69,7 +108,6 @@ test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archi
 
 
 
-set.seed(1)
 
 
 
@@ -77,15 +115,19 @@ set.seed(1)
 
 ctrl.01 <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
                      
-                     verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
+                        allowParallel = TRUE, # con esto le digo que si puede hacer calculos en paralelo lo haga
+                        
+                        seeds = seeds, # con esto seteo las seeds para que cuando se use paralelizacion sea reproducible
+                        
+                        verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                      
-                     number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
+                        number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
                      
-                     repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
+                        repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
                      
-                     classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
+                        classProbs=TRUE , # le digo que me devuelva la probabilidad para cada clase 
                      
-                     adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
+                        adaptive = list(min = 5, ## is the minimum number of resamples that will be used for each tuning parameter. 
                                      
                                      alpha = 0.05, ## is a confidence level that is used to remove parameter settings. To date, this value has not shown much of an effect.
                                      
@@ -189,9 +231,13 @@ set.seed(1)
 
 ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
                          
-                         verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
+                     allowParallel = TRUE, # con esto le digo que si puede hacer calculos en paralelo lo haga
+                     
+                     seeds = seeds, # con esto seteo las seeds para que cuando se use paralelizacion sea reproducible
+                     
+                     verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                          
-                         number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
+                        number = 10 , # el numero de k-fold lo seteo en 10, dado que en el curso nos dijieron que era el mejor para optimizar
                          
                          repeats = 5 , # el numero de veces que se repite el cross validation para que el resultado no sea sesgado
                          
@@ -290,6 +336,7 @@ resultado.gbm
 
 
 
+stopCluster(cls) ## cierro el cluster con el que hice la paralelizacion asi no tengo problemas de configuracion
 
 
 

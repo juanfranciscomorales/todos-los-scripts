@@ -9,7 +9,11 @@ setwd("D:/MEGA")
 
 library(XML)
 
-mesh <- xmlTreeParse(file = "desc2018.xml" , useInternalNodes = TRUE)
+xml.url <- "ftp://nlmpubs.nlm.nih.gov/online/mesh/MESH_FILES/xmlmesh/desc2018.xml"
+
+#mesh <- xmlTreeParse(file = "desc2018.xml" , useInternalNodes = TRUE)
+
+mesh <- xmlTreeParse(file = xml.url , useInternalNodes = TRUE)
 
 rootnode <- xmlRoot(mesh)
 

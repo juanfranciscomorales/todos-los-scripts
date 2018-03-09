@@ -1,11 +1,12 @@
+###########################################
+
+
+## #  EXTREME GRADIENT BOOSTING - PARA 2 CLASES ##
+
 
 ###########################################
 
 
-             ### K- NN ###
-
-
-###########################################
 
 
 is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
@@ -16,43 +17,102 @@ if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no 
 
 if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
-library(caret)
+if (is.installed("parallel") == FALSE) {install.packages("parallel")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
-library(data.table)
+if (is.installed("doParallel") == FALSE) {install.packages("doParallel")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
-library(pROC)
+library(parallel) ##  paquete para hacer paralelizacion 
 
-training.set  <- "Dtrainingmiristoil.csv"  ### nombre del archivo con el training set
+library(doParallel) ##  paquete para hacer paralelizacion 
 
-test.set <- "Dtestmiristoil.csv"  ### nombre del archivo con el test set
+library(caret) ## cargo el paquete caret que tiene varias funciones que voy a usar
+
+library(data.table) ## cargo este paquete para leer rapido los archivos
+
+
+
+training.set  <- "S-M training set.csv"  ### nombre del archivo con el training set
+
+test.set <- "S-M test set.csv"  ### nombre del archivo con el test set
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
 training <- training[ , apply(training, 2, function(x) !any(is.na(x)))] ### elimino las columnas que contienen NaN
 
-training <- training[,-1] # elimino la columna nombres, dejo solo las columnas con los descriptores y la clase
+training <- training[,-c(1,2,4)] # elimino la columna nombres, dejo solo las columnas con los descriptores y la clase
 
 sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las columnas que tienen sd = 0 ( o sea sin varianza) y las que tienen muy muy poca varianza
 
 training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
-clase <- training$clase ## guardo los valores de clase para despues
+training$clase <- as.factor(make.names(training$clase)) ## hago que la columna clase sea como factor y con nombres validos para poder hacer que el boosting sea clasificatorio
 
-training$clase <- as.factor(make.names(training$clase)) ## hago que la columna clase sea de tipo factor. Tambien hago que los nombres de los factores sean validos para usar en la funcion train
+clase <- training$clase ## guardo los valores de clase para despues
 
 test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-test$clase <- as.factor(test$clase) # hago que la clase sea factor 
 
-test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
+
+
+
+
+#########################################
+
+## CONFIGURACION PARA HACER PARALELIZACION ##
+
+#########################################
+
+
+set.seed(1)
+
+## seteo para poder hacer calculos en paralelo
+
+cores <- detectCores() ## con esta funcion obtengo el numero de nucleos de la compu
+
+cls = makeCluster(cores) # Creates a set of copies of R running in parallel and communicating over sockets.
+
+registerDoParallel(cls) ## The registerDoParallel function is used to register the parallel backend with the foreach package.
+
+
+## genero una lista de seeds para poder hacer reproducible el ejemplo
+## lista tiene 1000 elementos con un vector de 1000 dentro de cada elemento
+## lo hago enorme por las dudas, ademas si sobran seeds no hay drama
+
+
+seeds <- vector(mode = "list", length = 1000) ## creo una lista de largo 1000
+
+for(i in 1:length(seeds)) seeds[[i]] <- sample.int(1000, 1000) ## hago que cada elemento de la lista este compuesto por un vector con 1000 enteros.
+
+
+
+
+
+
+
+
+
+###############################################################################
+
+
+
+#       BUSQUEDA DE PARAMETROS OPTIMOS 
+
+
+
+##############################################################################
+
+
+
 
 
 
 ## seteo para la cross validation
 
-set.seed(1)
-
-ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation adaptativo. Esto hace que mi corrida sea mas corta porque va eliminando a medida que ve cuales dan mal
+ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                     
+                     allowParallel = TRUE, # con esto le digo que si puede hacer calculos en paralelo lo haga
+                     
+                     seeds = seeds, # con esto seteo las seeds para que cuando se use paralelizacion sea reproducible
                      
                      verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                      
@@ -74,68 +134,83 @@ ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar 
                      
 )
 
-# PUEDO EN LA FUNCION trainControl anular los argumentos classProbs y summaryFunction
-# y ver cual es el valor optimo de k pero en vez de curva ROC sino por accuracy
 
 
+## con esto seteo la busqueda para seleccionar los parametros optimos con shrinkage = 0.01 
 
-
-## con esto seteo la busqueda para seleccionar los parametros optimos
-
-knnGrid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
+xgboost.grid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrido que va a hacer la funcion para optimizar los siguientes parámetros de gbm
         
-                k = 1:50 ) # que pruebe k vecinos desde 1 a 50, para luego ver cual es el optimo
+        nrounds = seq(from = 250, to = 2000, by = 250), ## este parametro es para ver el numero optimo de arboles
+        
+        eta = c(0.001, 0.003, 0.01, 0.3) ,# eta control the learning rate: scale the contribution of each tree by a factor of 0 < eta < 1 when it is added to the current approximation. Used to prevent overfitting by making the boosting process more conservative. Lower value for eta implies larger value for nrounds: low eta value means model more robust to overfitting but slower to compute. Default: 0.3
+        
+        lambda =  c(0 , 0.001 , 0.01 , 0.1), # lambda L2 regularization term on weights. Default: 0 . L2 regularization term on weights, increase this value will make model more conservative.
+                
+        alpha = c(0 , 0.001 , 0.01 , 0.1) #alpha L1 regularization term on weights. (there is no L1 reg on bias because it is not important). Default: 0. L1 regularization term on weights, increase this value will make model more conservative.
+)
 
 
+### Entreno el modelo por gbm y optimizo los valores
 
-
-### Entreno el modelo por knn y optimizo los valores
 
 ptm <- proc.time()
 
-knnFit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
-                
-                data = training, ## le digo cuales son mis datos para armar el modelo
-                
-                method = "knn", ## aca le digo que use knn para armar el modelo
-                
-                trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
-                
-                preProcess = c("center","scale"), ## aca le digo que me centre y me escale los datos antes de armar el modelo
-                 
-                tuneGrid = knnGrid )  ## con esto le digo que pruebe desde k = 1 hasta k = 50, y con el cross validation que puse en trcontrol va a elegir el optimo k 
+xgboost.fit <- train(clase ~ .,## uso la funcion train del paquete caret para hacer knn. en esta linea especifico cual es el valor a predecir y cuales son las variables independientes. 
+                     
+                     data = training, ## le digo cuales son mis datos para armar el modelo
+                     
+                     method = "xgbLinear", ## aca le digo que use extreme gradient boosting con funciones lineales para armar el modelo
+                     
+                     trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
+                     
+                     tuneGrid = xgboost.grid , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
+                     
+                     objective = "binary:logistic") ## esto lo hago para que sea clasificatorio
+
 
 proc.time() - ptm
 
-knnFit
 
-plot(knnFit)
+xgboost.fit ## imprimo el resultado
 
-library(pROC)
+plot(xgboost.fit) ## grafico los resultados del cross validation
 
-predicciones.train <- predict(knnFit, newdata = training , type = "prob") ## hago la prediccion en el training set obteniendo los resultados como probabilidad
+training_importancia <- training[, -c(1)]## saco la columna clase para poder calcular las importancias de las variables
+
+variables.importantes <- xgb.importance(feature_names = colnames(training_importancia) , model = xgboost.fit$finalModel) ## con esto calculo la importancia de las variables
+
+plot_variables_importantes <- xgb.plot.importance(importance_matrix = variables.importantes , top_n = 20) ## grafico las variables mas importantes
+
+library(pROC) ## abro el paquete pROC para hacer las curvas ROC
+
+predicciones.train <- predict(xgboost.fit, newdata = training , type = "prob" , na.action = na.pass) ## hago la prediccion en el training set obteniendo los resultados como probabilidad
 
 names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 auc.training <- auc(roc(predictor = predicciones.train$Activo,response = clase, direction = "<", plot = TRUE, main ="ROC Training set")) ## calculo la curva ROC para el training set
 
-predicciones.test <- predict(knnFit, newdata = test, type="prob")  ## predicciones en el test set expresadas como probabilidad
-
-
-
-#  ME TIRA ERROR, PORQUE HAY NA EN EL TEST SET
-
-# SI PONGO na.omit  ME PREDICE PERO MENOR CANT DE FILAS, ENTONCES CUANDO QUIERO HACER LA CURVA ROC DEL TEST SET ME TIRA ERROR
-
-
+predicciones.test <- predict(xgboost.fit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
 auc.test <- auc(roc(predictor= predicciones.test$Activo, response = test$clase, direction = "<", plot = TRUE, main ="ROC Test set")) ## calculo de curva ROC para el test set 
 
-resultado.knn <- list("Modelo armado por knn", knnFit ,"Numero de k Óptimo",  knnFit$finalModel , "AUC ROC Training" , auc.training,"Resultado K-fold CV" , getTrainPerf(knnFit) , "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
+resultado.xgboost <- list("Modelo armado por Extreme Gradient Boosting", xgboost.fit  , "AUC ROC Training" , auc.training,"Resultado K-fold CV" , getTrainPerf(xgboost.fit) , "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
 
-resultado.knn
+resultado.xgboost
+
+
+
+stopCluster(cls) ## cierro el cluster con el que hice la paralelizacion asi no tengo problemas de configuracion
+
+
+#####################################################################################
+###################################################################################
+###################################################################################
+
+
+
+
 
 
 
@@ -148,7 +223,7 @@ resultado.knn
 
 
 
-predicciones.train <- predict(knnFit, newdata = training, type="prob" , na.action = na.pass)  ## predicciones en el train set expresadas como probabilidad
+predicciones.train <- predict(xgboost.fit, newdata = training, type="prob" , na.action = na.pass)  ## predicciones en el train set expresadas como probabilidad
 
 names(predicciones.train) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -260,15 +335,11 @@ ggplotly(grafico)
 
 
 
-test <- "Dtestmiristoil.csv"  ### nombre del test set
+test <- "S-M test set.csv"  ### nombre del test set
 
 test <- as.data.frame(fread(input = test, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
-test$clase <- as.factor(test$clase) # hago que la clase sea factor 
-
-test[is.na(test)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
-
-predicciones.test <- predict(knnFit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
+predicciones.test <- predict(xgboost.fit, newdata = test, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.test) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -381,10 +452,13 @@ ggplotly(grafico)
 
 
 
-saveRDS(knnFit, "knnFit.rds") ## guardo el modelo 
+saveRDS(xgboost.fit, "xgboost-fit.rds") ## guardo el modelo 
 
 
-knnFit <- readRDS("knnFit.rds") ## vuelvo a cargar el modelo
+xgboost.fit <- readRDS("xgboost-fit.rds") ## vuelvo a cargar el modelo
+
+
+
 
 
 
@@ -403,15 +477,11 @@ knnFit <- readRDS("knnFit.rds") ## vuelvo a cargar el modelo
 
 
 
-dude.set <- "Ddudes2miristoil.csv"
+dude.set <- "Ddudesmiristoiltodos.csv"
 
 dude <- as.data.frame(fread(input = dude.set, check.names = TRUE)) #leo el archivo con mis descriptores del dude set
 
-dude$clase <- as.factor(dude$clase) # hago que la clase sea factor 
-
-dude[is.na(dude)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
-
-predicciones.dude <- predict(knnFit, newdata = dude, type="prob")  ## predicciones en el test set expresadas como probabilidad
+predicciones.dude <- predict(gbmfit, newdata = dude, type="prob" , na.action = na.pass)  ## predicciones en el test set expresadas como probabilidad
 
 names(predicciones.dude) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -511,9 +581,7 @@ base.datos <- "base drugbank 24-10-16.csv" ### nombre del archivo con la base de
 
 df.base.datos <- as.data.frame(fread(input=base.datos, check.names = TRUE)) #leo el archivo con la base de datos
 
-df.base.datos[is.na(df.base.datos)] <- 0 ### con esto lo que hago es reemplazar los NA por ceros para poder hacer las predicciones, porque sino me tira error
-
-predicciones.base.datos <- predict(knnFit, newdata = df.base.datos, type="prob")  ## predicciones en la base de datos expresadas como probabilidad
+predicciones.base.datos <- predict(xgboost.fit, newdata = df.base.datos, type="prob" , na.action = na.pass)  ## predicciones en la base de datos expresadas como probabilidad
 
 names(predicciones.base.datos) <- c("Inactivo","Activo") ## le cambio los nombres a las columnas de la tabla de predicciones del training, para que sea activo y inactivo
 
@@ -521,8 +589,7 @@ predicciones.base.datos$NOMBRE <- df.base.datos$NAME ## agrego una columna que s
 
 library(openxlsx)
 
-write.xlsx(x= predicciones.base.datos, file= "Screening por KNN.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
-
+write.xlsx(x= predicciones.base.datos, file= "Screening por Extreme Gradient Boosting con caret.xlsx" , colNames= TRUE, keepNA=TRUE) # funcion para guardar los resultados del screening en la base de datos
 
 
 

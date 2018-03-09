@@ -15,6 +15,14 @@ if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no 
 
 if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
+if (is.installed("parallel") == FALSE) {install.packages("parallel")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+if (is.installed("doParallel") == FALSE) {install.packages("doParallel")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+library(parallel) ##  paquete para hacer paralelizacion 
+
+library(doParallel) ##  paquete para hacer paralelizacion 
+
 library(caret) ## cargo el paquete caret que tiene varias funciones que voy a usar
 
 library(data.table) ## cargo este paquete para leer rapido los archivos
@@ -39,10 +47,54 @@ training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza
 test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
 
 
+#########################################
+
+## CONFIGURACION PARA HACER PARALELIZACION ##
+
+#########################################
+
+
+set.seed(1)
+
+## seteo para poder hacer calculos en paralelo
+
+cores <- detectCores() ## con esta funcion obtengo el numero de nucleos de la compu
+
+cls = makeCluster(cores) # Creates a set of copies of R running in parallel and communicating over sockets.
+
+registerDoParallel(cls) ## The registerDoParallel function is used to register the parallel backend with the foreach package.
+
+
+## genero una lista de seeds para poder hacer reproducible el ejemplo
+## lista tiene 1000 elementos con un vector de 1000 dentro de cada elemento
+## lo hago enorme por las dudas, ademas si sobran seeds no hay drama
+
+
+seeds <- vector(mode = "list", length = 1000) ## creo una lista de largo 1000
+
+for(i in 1:length(seeds)) seeds[[i]] <- sample.int(1000, 1000) ## hago que cada elemento de la lista este compuesto por un vector con 1000 enteros.
+
+
+###############################################################################
+
+
+
+#       BUSQUEDA DE PARAMETROS OPTIMOS 
+
+
+
+##############################################################################
+
+
+
 
 ## seteo para la cross validation
 
 ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                     
+                     allowParallel = TRUE, # con esto le digo que si puede hacer calculos en paralelo lo haga
+                     
+                     seeds = seeds, # con esto seteo las seeds para que cuando se use paralelizacion sea reproducible
                      
                      verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                      
@@ -103,6 +155,10 @@ auc.test <- auc(roc(predictor= predicciones.test, response = test$clase, directi
 resultado.pcr <- list("Modelo armado por Principal Component Regression con caret", pcrfit , "AUC ROC Training" , auc.training, "AUC ROC Test", auc.test) ## armo una lista con todos los resultados que quiero que se impriman
 
 resultado.pcr
+
+
+stopCluster(cls) ## cierro el cluster con el que hice la paralelizacion asi no tengo problemas de configuracion
+
 
 
 ######### GRAFICOS PARA ANALIZAR LOS RESULTADOS ############

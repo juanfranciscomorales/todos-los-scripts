@@ -5,7 +5,7 @@
 
 ############################
 
-setwd("C:/Users/Administrador/Desktop")
+setwd("~/MEGA")
 
 library(XML)
 

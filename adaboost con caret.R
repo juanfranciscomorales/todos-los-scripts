@@ -13,6 +13,10 @@ is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#
 
 if (is.installed("data.table") == FALSE) {install.packages("data.table")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
+if (is.installed("parallel") == FALSE) {install.packages("parallel")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
+if (is.installed("doParallel") == FALSE) {install.packages("doParallel")} #si openxlsx no est? instalado hago que me lo instale automaticamente
+
 if (is.installed("caret") == FALSE) {install.packages("caret")} #si openxlsx no est? instalado hago que me lo instale automaticamente
 
 if (is.installed("pROC") == FALSE) {install.packages("pROC")} #si openxlsx no est? instalado hago que me lo instale automaticamente
@@ -21,6 +25,9 @@ library(caret) ## cargo el paquete caret que tiene varias funciones que voy a us
 
 library(data.table) ## cargo este paquete para leer rapido los archivos
 
+library(parallel) ##  paquete para hacer paralelizacion 
+
+library(doParallel) ##  paquete para hacer paralelizacion 
 
 
 
@@ -62,6 +69,35 @@ if (sum(duplicated(names(test))) > 0 ) { ## hago un if para eliminar las columna
 
 
 
+#########################################
+
+## CONFIGURACION PARA HACER PARALELIZACION ##
+
+#########################################
+
+
+set.seed(1)
+
+## seteo para poder hacer calculos en paralelo
+
+cores <- detectCores() ## con esta funcion obtengo el numero de nucleos de la compu
+
+cls = makeCluster(cores) # Creates a set of copies of R running in parallel and communicating over sockets.
+
+registerDoParallel(cls) ## The registerDoParallel function is used to register the parallel backend with the foreach package.
+
+
+## genero una lista de seeds para poder hacer reproducible el ejemplo
+## lista tiene 1000 elementos con un vector de 1000 dentro de cada elemento
+## lo hago enorme por las dudas, ademas si sobran seeds no hay drama
+
+
+seeds <- vector(mode = "list", length = 1000) ## creo una lista de largo 1000
+
+for(i in 1:length(seeds)) seeds[[i]] <- sample.int(1000, 1000) ## hago que cada elemento de la lista este compuesto por un vector con 1000 enteros.
+
+
+
 
 #########################################
 
@@ -72,13 +108,13 @@ if (sum(duplicated(names(test))) > 0 ) { ## hago un if para eliminar las columna
 #########################################
 
 
-
-set.seed(1)
-
-
 ## seteo para la cross validation
 
 ctrl <- trainControl(method="repeatedcv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                     
+                     allowParallel = TRUE, # con esto le digo que si puede hacer calculos en paralelo lo haga
+                     
+                     seeds = seeds, # con esto seteo las seeds para que cuando se use paralelizacion sea reproducible
                      
                      verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                      
@@ -181,12 +217,14 @@ resultado.adaboost
 # OPTIMIZAR. LA BUSQUEDA FINA HAGO AHORA
 
 
-set.seed(1)
-
 
 ## seteo para la cross validation
 
 ctrl <- trainControl(method="adaptive_cv",# aca armo el elemento para optimizar el valor de K. El metodo es cross-validation
+                     
+                     allowParallel = TRUE, # con esto le digo que si puede hacer calculos en paralelo lo haga
+                     
+                     seeds = seeds, # con esto seteo las seeds para que cuando se use paralelizacion sea reproducible
                      
                      verboseIter = TRUE , ### con esto le digo que me imprima la evolucion de la busqueda de los parametros optimos
                      
@@ -287,6 +325,7 @@ resultado.adaboost
 
 
 
+stopCluster(cls) ## cierro el cluster con el que hice la paralelizacion asi no tengo problemas de configuracion
 
 
 

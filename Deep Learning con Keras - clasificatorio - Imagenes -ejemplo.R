@@ -1,17 +1,35 @@
 
-is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
+########################
+##    Install Keras   ##
+########################
 
-if (is.installed("keras") == FALSE) {install.packages("keras")} #si keras no est? instalado hago que me lo instale automaticamente
+# First, install the keras R package from GitHub as follows:
 
-Sys.setenv(KERAS_BACKEND = "theano") ## seteo para que use theano como backend
+install.packages("Rcpp")
+install.packages("devtools")
+devtools::install_github("rstudio/reticulate")
+devtools::install_github("rstudio/tensorflow")
+devtools::install_github("rstudio/keras")
 
-library(keras) ## cargo el paquete para usar el deep learning
+
+# The Keras R interface uses the TensorFlow backend engine by default.
+# To install both the core Keras library as well as the TensorFlow backend use the install_keras() function:
+
+library(keras)
+
+install_keras()
+
+###############################################################
+###############################################################
+
 
 ########################
 ## Preparing the Data ##
 ########################
 
 ## The MNIST dataset is included with Keras and can be accessed using the dataset_mnist() function. Here we load the dataset then create variables for our test and training data:
+
+library(keras)
 
 mnist <- dataset_mnist() 
 
