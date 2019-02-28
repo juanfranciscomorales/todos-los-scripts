@@ -29,6 +29,8 @@ library(caret) ## cargo el paquete caret que tiene varias funciones que voy a us
 
 library(data.table) ## cargo este paquete para leer rapido los archivos
 
+library(xgboost)
+
 
 
 training.set  <- "S-M training set.csv"  ### nombre del archivo con el training set
@@ -77,9 +79,9 @@ registerDoParallel(cls) ## The registerDoParallel function is used to register t
 ## lo hago enorme por las dudas, ademas si sobran seeds no hay drama
 
 
-seeds <- vector(mode = "list", length = 1000) ## creo una lista de largo 1000
+seeds <- vector(mode = "list", length = 10000) ## creo una lista de largo 1000
 
-for(i in 1:length(seeds)) seeds[[i]] <- sample.int(1000, 1000) ## hago que cada elemento de la lista este compuesto por un vector con 1000 enteros.
+for(i in 1:length(seeds)) seeds[[i]] <- sample.int(10000, 10000) ## hago que cada elemento de la lista este compuesto por un vector con 1000 enteros.
 
 
 
@@ -139,7 +141,7 @@ xgboost.grid <-  expand.grid(  ## con esto lo que voy a hacer es decir el barrid
         
         max_depth = c(1, 2, 4, 6) , ## max_depth maximum depth of a tree. Default: 6. este parametro es para ver la profundidad del arbol optima
         
-        nrounds = c(250, 500, 1000), ## este parametro es para ver el numero optimo de arboles
+        nrounds = seq(from = 50 , to = 2000 , by = 50), ## este parametro es para ver el numero optimo de arboles
         
         eta = c(0.001, 0.003, 0.01, 0.3), # eta control the learning rate: scale the contribution of each tree by a factor of 0 < eta < 1 when it is added to the current approximation. Used to prevent overfitting by making the boosting process more conservative. Lower value for eta implies larger value for nrounds: low eta value means model more robust to overfitting but slower to compute. Default: 0.3
         
@@ -167,10 +169,9 @@ xgboost.fit <- train(clase ~ .,## uso la funcion train del paquete caret para ha
                    
                    trControl = ctrl,  ## le digo que use el elemento ctrl para optimizar el modelo
                    
-                   tuneGrid = xgboost.grid , ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
+                   tuneGrid = xgboost.grid ) ## hago pasar el elemento gbmGrid para probar y encontrar cuales son los valores optimos 
                    
-                   objective = "binary:logistic") ## esto lo hago para que sea clasificatorio
-
+             
 
 proc.time() - ptm
 

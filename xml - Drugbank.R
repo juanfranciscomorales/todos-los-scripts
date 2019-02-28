@@ -36,41 +36,63 @@ names(rootnode[[1]]) ## nombres de los subnodos
 
 
 
-
-categories.list <- list()
+categories <- vector()
 
 for (i in 1:rootsize) {
-     
-        drug <- rootnode[[i]][["categories"]] ## extraigo solo el subnodo categories que esta compuesto a su vez por 2 subnodos category y mesh.id
         
-        list <- xmlToList(drug) ## convierto a lista
+        node.length <- length(xmlToList(rootnode[[i]][["categories"]])) ## me dice el numero de atc-codes que tiene el farmaco
         
-        if (is.null(list)) {
+        if (node.length == 0 ) { # si no tiene atc-code le asigo el valor NA
                 
-                list <- list()
+                drug <- NA
+                
+        } else { # si tiene atc-code hago el siguiente for loop
+                
+                category.list <- xmlToList(rootnode[[i]][["categories"]]) ## extraigo solo el subnodo categories que esta compuesto a su vez por 2 subnodos category y mesh.id
+                
+                drug <- paste( unlist( lapply(category.list  , function (x){x[[1]]} ) , use.names = FALSE )  , collapse = " - " )
+                
         }
         
-        df <- data.frame(do.call(rbind,list)) ## paso la info a dataframe
-       
-        categories.list[[i]] <- df 
+        categories[i] <- drug 
+        
 }
 
-length(categories.list)
+length(categories)
 
-categories.list <- lapply(categories.list , function (x) { as.data.frame(as.data.frame(t(x))[1,])}) ## traspongo y dejo solo la fila con las categorias
 
-length(categories.list)
 
-#categories.list <- lapply( categories.list , function(x) { if ( dim(x) == c(1,0) ) { data.frame(c(1,1)) }}) 
 
-#length(categories.list)
 
-#class <- vector()
+mesh.id <- vector()
 
-#for( i in 1:length(categories.list)){
+for (i in 1:rootsize) {
         
-#        class[i] <- class(categories.list[[i]])
-#}
+        node.length <- length(xmlToList(rootnode[[i]][["categories"]])) ## me dice el numero de atc-codes que tiene el farmaco
+        
+        if (node.length == 0 ) { # si no tiene atc-code le asigo el valor NA
+                
+                drug <- NA
+                
+        } else { # si tiene atc-code hago el siguiente for loop
+                
+                mesh.id.list <- xmlToList(rootnode[[i]][["categories"]]) ## extraigo solo el subnodo categories que esta compuesto a su vez por 2 subnodos category y mesh.id
+                
+                mesh.id.list <- lapply(mesh.id.list  , function (x){x[[2]]} ) ## extraigo los valores de mesh.id
+                
+                mesh.id.list <- lapply(mesh.id.list, function(x) ifelse(is.null(x),  NA, x)) ## los que son NULL los vuelvo NA para que no se pierda cuando se hace unlist
+                
+                drug <- paste( unlist( mesh.id.list  , use.names = FALSE )  , collapse = " - " ) ## armo la frase con todos los mesh.id por compuesto
+                
+        }
+        
+        mesh.id[i] <- drug 
+        
+}
+
+length(mesh.id)
+
+
 
 
 
@@ -274,19 +296,81 @@ for (i in 1:rootsize) {
 
 length(absorption)
 
-### Revisar, todavia falta corregir  ####
-#atc.code <- vector()
 
-#for (i in 1:rootsize) {
-        
-#        drug <- xmlAttrs(rootnode[[i]])[["atc-codes"]][[1]]) ## extraigo solo el subnodo categories que esta compuesto a su vez por 2 subnodos category y mesh.id
-        
-#        type.vector[i] <- drug 
-        
-#}
 
-#length(type.vector)
-### Revisar, todavia falta corregir  ####
+
+
+
+atc.code.root <- vector()
+
+for (i in 1:rootsize) {
+        
+        node.length <- length(xmlToList(rootnode[[i]][["atc-codes"]])) ## me dice el numero de atc-codes que tiene el farmaco
+        
+        if (node.length == 0 ) { # si no tiene atc-code le asigo el valor NA
+                
+                drug <- NA
+        
+                } else { # si tiene atc-code hago el siguiente for loop
+                        
+                        colect <- vector() ## creo el vector donde voy a guardar los diferentes valores de atc-code
+                        
+                        for(j in 1:node.length) {  # extraigo los todos los atc-codes que tiene el farmaco y los coloco en un vector
+                                
+       colect[j]  <- unname(xmlToList(rootnode[[i]][["atc-codes"]])[[j]][[1]]$.attrs) ## extraigo el subnodo de atc-codes como lista, lo cual me da una lista con 5 sublistas. Selecciono la sublista 1, y me quedo con el atributo de esa lista que es el atc-code raiz, al cual le hago unname para sacar el attribute y quedarme solo con el atc-code raiz
+        
+                        }
+                        
+                        drug <- paste(colect , collapse = " - ")  # hago que todos los atc codes esten en un vector con length 1     
+        
+        
+        
+                }
+        
+atc.code.root[i] <- drug 
+
+}
+
+length(atc.code.root)
+
+
+
+
+
+
+atc.code.unique <- vector()
+
+for (i in 1:rootsize) {
+        
+        node.length <- length(xmlToList(rootnode[[i]][["atc-codes"]])) ## me dice el numero de atc-codes que tiene el farmaco
+        
+        if (node.length == 0 ) { # si no tiene atc-code le asigo el valor NA
+                
+                drug <- NA
+                
+        } else { # si tiene atc-code hago el siguiente for loop
+                
+                colect <- vector() ## creo el vector donde voy a guardar los diferentes valores de atc-code
+                
+                for(j in 1:node.length) {  # extraigo los todos los atc-codes que tiene el farmaco y los coloco en un vector
+                        
+                        colect[j]  <- unname(xmlToList(rootnode[[i]][["atc-codes"]])[[j]][[5]]) ## extraigo el subnodo de atc-codes como lista, lo cual me da una lista con 5 sublistas. Selecciono la sublista 1, y me quedo con el atributo de esa lista que es el atc-code raiz, al cual le hago unname para sacar el attribute y quedarme solo con el atc-code raiz
+                        
+                }
+                
+                drug <- paste(colect , collapse = " - ")  # hago que todos los atc codes esten en un vector con length 1     
+                
+                
+                
+        }
+        
+        atc.code.unique[i] <- drug 
+        
+}
+
+length(atc.code.unique)
+
+
 
 
 
@@ -309,13 +393,8 @@ length(type.vector)
 
 
 
-library(plyr)
 
-#df <- do.call("rbind.fill", categories.list) 
-
-df <- rbind.fill(categories.list)
-
-df.completo <- cbind(name = names.vector , type = type.vector , drugbank_id = id.vector , groups = groups.vector, MW = MW.vector , synonyms = synonyms.vector , cas_number = cas.number , UNII_Unique.Ingredient.Identifier = unii.vector , protein_binding = protein.binding , clearance = clearance , volume_distribution = volume_distribution , absorption = absorption , df)
+df.completo <- cbind(name = names.vector , type = type.vector , drugbank_id = id.vector , groups = groups.vector, MW = MW.vector , synonyms = synonyms.vector , cas_number = cas.number , atc_code_unique = atc.code.unique  , atc_code_root = atc.code.root , UNII_Unique.Ingredient.Identifier = unii.vector , protein_binding = protein.binding , clearance = clearance , volume_distribution = volume_distribution , absorption = absorption , mesh_id = mesh.id , categories = categories)
 
 View(df.completo)
 

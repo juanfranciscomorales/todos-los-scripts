@@ -1,3 +1,10 @@
+###########################################
+
+
+## # Deep Learning - PARA 2 CLASES ##
+
+
+###########################################
 
 
 is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
@@ -24,35 +31,22 @@ library(caret) ## cargo el paquete caret que tiene varias funciones que voy a us
 set.seed(1) ## seteo la semilla para hacer reproducibles los resultados
 
 
-training.set  <- "S-M training set.csv"  ### nombre del archivo con el training set
 
-test.set <- "S-M test set.csv" ### nombre del archivo con el test set
+training.set  <- "S-M training set.csv"   ### nombre del archivo con el training set
 
-
-## LEO Y LIMPIO MI TRAINING SET
-
+test.set <- "S-M test set.csv"   ### nombre del archivo con el test set
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
 training <- training[ , apply(training, 2, function(x) !any(is.na(x)))] ### elimino las columnas que contienen NaN
 
-test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
-
-drops <- colnames(test)[colSums(is.na(test)) > 0]## me fijo que columnas en el test set contiene NaN para poder eliminarlas del training set
-
-training <- training[ , !(names(training) %in% drops)] ## elimino las columnas que en el test set contiene NaN.
-
-training <- training[,-c(1,2,4)] # elimino la columna nombres, dejo solo las columnas con los descriptores y la clase
+training <- training[,-1] # elimino la columna nombres, dejo solo las columnas con los descriptores y la clase
 
 sin.varianza <-  nearZeroVar(x = training) ### con esto se cuales son las columnas que tienen sd = 0 ( o sea sin varianza) y las que tienen muy muy poca varianza
 
 training <- training[, -sin.varianza] ## elimino las columnas que tiene varianza cercana a cero
 
 #training$clase <- as.factor(make.names(training$clase)) ## hago que la columna clase sea como factor y con nombres validos para poder hacer que el boosting sea clasificatorio
-
-training.log <- log10(training[,2:ncol(training)]+1)  ## calculo el log +1 de cada elemento del data frame con solo los descriptores. Es logaritmo base 10
-
-training.log <- training.log[ , apply(training.log, 2, function(x) !any(is.na(x)))] ### elimino las columnas que contienen NaN
 
 training.scale.1 <- training[,2:ncol(training)] ## dejo solos los descriptores para escalar
 
@@ -72,10 +66,6 @@ Y_train <- to_categorical(Y_train, num_classes = 2) ## Para preparar estos datos
 
 
 test <- as.data.frame(fread(input = test.set, check.names = TRUE)) #leo el archivo con mis descriptores del test set
-
-test.log <- test[,colnames(training.log)] ## dejo solo las columnas que tambien están en el dataframe training.log
-
-test.log <- log10(test.log + 1)  ## calculo el log +1 de cada elemento del data frame con solo los descriptores. Es logaritmo base 10
 
 test.scale <- test[,colnames(training.scale.1)]## dejo solo las columnas que tambien estan en el dataframe training.scale
 
@@ -146,7 +136,7 @@ callbacks_list <- list(checkpoint
 history <- model %>% fit(  ## Hago el ajuste del modelo en si.  El batch size es del 5% de mi training set.
         x = as.matrix(entrenamiento),
         y = Y_train, 
-        epochs = 100,
+        epochs = 10,
         callbacks = callbacks_list,
         #validation_split = 0.2 ,
         batch_size = nrow(entrenamiento) 

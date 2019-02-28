@@ -11,11 +11,7 @@
 
 
 
-training.set  <- "Training Sofia.csv"  ### nombre del archivo con el training set
 
-test.set <- "Test Sofia.csv"  ### nombre del archivo con el test set
-
-cant.arboles <- 3000  ### cant de arboles que pongo en el RF
 
 is.installed <- function(mypkg) { is.element(mypkg, installed.packages()[,1]) }#creo funcion que se fija si me dice si mi paquete est? instalado o no
         
@@ -32,6 +28,13 @@ library(randomForest) # cargo el paquete random forest
 library(pROC) ## cargo el paquete pROC
 
 library(caret) ## cargo el paquete caret
+
+
+training.set  <- "Training Sofia.csv"  ### nombre del archivo con el training set
+
+test.set <- "Test Sofia.csv"  ### nombre del archivo con el test set
+
+cant.arboles <- 3000  ### cant de arboles que pongo en el RF
 
 training <- as.data.frame(fread(input = training.set, check.names = TRUE)) #leo el archivo con mis descriptores del training set
 
